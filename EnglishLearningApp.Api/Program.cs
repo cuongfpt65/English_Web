@@ -4,6 +4,7 @@ using EnglishLearningApp.Repository.Implementations;
 using EnglishLearningApp.Repository.Interfaces;
 using EnglishLearningApp.Service.Implementations;
 using EnglishLearningApp.Service.Interfaces;
+using ERSP.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -30,6 +31,10 @@ builder.Services.AddScoped<IClassRepository, ClassRepository>();
 builder.Services.AddScoped<IClassMemberRepository, ClassMemberRepository>();
 builder.Services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
 builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+
+builder.Services.AddHttpClient<GeminiClient>();
+builder.Services.AddScoped<ChatNlpService>();
+builder.Services.AddScoped<ERSP.Api.Services.ChatBotService>();
 
 // Register Services
 builder.Services.AddScoped<IAuthService, AuthService>();

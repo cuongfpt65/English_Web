@@ -39,9 +39,7 @@ namespace EnglishLearningApp.Api.Controllers
                 if (membership == null)
                 {
                     return Forbid("You are not a member of this class");
-                }
-
-                var quizzes = await _context.ClassQuizzes
+                }                var quizzes = await _context.ClassQuizzes
                     .Include(q => q.CreatedBy)
                     .Include(q => q.Questions)
                     .Include(q => q.Attempts)
@@ -54,11 +52,9 @@ namespace EnglishLearningApp.Api.Controllers
                         q.CreatedAt,
                         q.DueDate,
                         q.TimeLimit,
-                        CreatedBy = new
-                        {
-                            q.CreatedBy.Id,
-                            q.CreatedBy.FullName
-                        },
+                        q.IsActive,
+                        CreatedBy = q.CreatedBy.Id.ToString(),
+                        CreatedByName = q.CreatedBy.FullName,
                         QuestionCount = q.Questions.Count,
                         AttemptCount = q.Attempts.Count,
                         MyAttempt = q.Attempts.FirstOrDefault(a => a.UserId == userId),
@@ -315,18 +311,32 @@ namespace EnglishLearningApp.Api.Controllers
                 if (membership == null)
                 {
                     return Forbid("You are not a member of this class");
-                }
-
-                var results = await _context.ClassQuizAttempts
-                    .Include(a => a.User)
+                }                // First get all attempts
+                var attempts = await _context.ClassQuizAttempts
                     .Where(a => a.QuizId == quizId && a.IsCompleted)
+                    .ToListAsync();
+
+                // Get unique user IDs
+                var userIds = attempts.Select(a => a.UserId).Distinct().ToList();
+
+                // Get users
+                var users = await _context.Users
+                    .Where(u => userIds.Contains(u.Id))
+                    .ToDictionaryAsync(u => u.Id, u => u);
+
+                // Group and create results
+                var results = attempts
                     .GroupBy(a => a.UserId)
                     .Select(g => new
                     {
-                        User = new
+                        User = users.ContainsKey(g.Key) ? new
                         {
-                            g.First().User.Id,
-                            g.First().User.FullName
+                            Id = users[g.Key].Id.ToString(),
+                            FullName = users[g.Key].FullName
+                        } : new
+                        {
+                            Id = g.Key.ToString(),
+                            FullName = "Unknown User"
                         },
                         BestScore = g.Max(a => a.Score),
                         TotalQuestions = g.First().TotalQuestions,
@@ -335,7 +345,7 @@ namespace EnglishLearningApp.Api.Controllers
                                           .Min(a => a.CompletedAt)
                     })
                     .OrderByDescending(r => r.BestScore)
-                    .ToListAsync();
+                    .ToList();
 
                 return Ok(results);
             }
