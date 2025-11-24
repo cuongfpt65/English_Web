@@ -31,6 +31,7 @@ builder.Services.AddScoped<IClassRepository, ClassRepository>();
 builder.Services.AddScoped<IClassMemberRepository, ClassMemberRepository>();
 builder.Services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
 builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 
 builder.Services.AddHttpClient<GeminiClient>();
 builder.Services.AddScoped<ChatNlpService>();
@@ -41,6 +42,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IVocabularyService, VocabularyService>();
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IAdminService, AdminService>();
 
 // Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -77,9 +79,9 @@ builder.Services.AddSwaggerGen(options =>
     // Thông tin API
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "English Learning API",
-        Version = "v1",
-        Description = "API for English Learning App with JWT Authentication"
+    Title = "FPT Learnify AI API",
+    Version = "v1",
+    Description = "API for FPT Learnify AI - AI-Powered English Learning Platform with JWT Authentication"
     });
 
     // Cấu hình bảo mật JWT

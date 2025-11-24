@@ -68,5 +68,7 @@ public class UserDto
     
     public string? PhoneNumber { get; set; }
     
+    public string Role { get; set; } = "Student";
+    
     public DateTime CreatedAt { get; set; }
 }

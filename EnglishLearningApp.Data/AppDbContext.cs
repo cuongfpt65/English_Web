@@ -1,4 +1,5 @@
-﻿using EnglishLearningApp.Data.Entities.Chatbot;
+﻿using EnglishLearningApp.Data.Entities.Admin;
+using EnglishLearningApp.Data.Entities.Chatbot;
 using EnglishLearningApp.Data.Entities.Class;
 using EnglishLearningApp.Data.Entities.Document;
 using EnglishLearningApp.Data.Entities.Game;
@@ -45,12 +46,14 @@ namespace EnglishLearningApp.Data
         public DbSet<Test> Tests { get; set; }
         public DbSet<TestQuestion> TestQuestions { get; set; }
         public DbSet<TestResult> TestResults { get; set; }
-        public DbSet<UserTestAnswer> UserTestAnswers { get; set; }
-
-        // --- Document ---
+        public DbSet<UserTestAnswer> UserTestAnswers { get; set; }        // --- Document ---
         public DbSet<DocumentCategory> DocumentCategories { get; set; }
         public DbSet<Document> Documents { get; set; }
         public DbSet<UserDocumentHistory> UserDocumentHistories { get; set; }
+
+        // --- Admin ---
+        public DbSet<TeacherApproval> TeacherApprovals { get; set; }
+        public DbSet<SystemStatistics> SystemStatistics { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

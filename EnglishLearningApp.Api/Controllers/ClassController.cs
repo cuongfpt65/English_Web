@@ -63,14 +63,20 @@ namespace EnglishLearningApp.Api.Controllers
             {
                 return StatusCode(500, new { message = "Failed to get class members", error = ex.Message });
             }
-        }
-
-        [HttpPost]
+        }        [HttpPost]
         public async Task<IActionResult> CreateClass([FromBody] CreateClassRequestDto request)
         {
             try
             {
                 var userId = GetCurrentUserId();
+                var userRole = GetCurrentUserRole();
+                
+                // Chỉ cho phép Teacher tạo lớp
+                if (userRole != "Teacher")
+                {
+                    return Forbid();
+                }
+                
                 var classRoom = await _classService.CreateAsync(userId, request.Name, request.Description);
                 return Ok(classRoom);
             }
@@ -116,15 +122,19 @@ namespace EnglishLearningApp.Api.Controllers
             {
                 return StatusCode(500, new { message = "Failed to leave class", error = ex.Message });
             }
-        }
-
-        private Guid GetCurrentUserId()
+        }        private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null)
                 throw new UnauthorizedAccessException("User not authenticated");
 
             return Guid.Parse(userIdClaim.Value);
+        }
+
+        private string GetCurrentUserRole()
+        {
+            var roleClaim = User.FindFirst(ClaimTypes.Role);
+            return roleClaim?.Value ?? "Student";
         }
     }
 }

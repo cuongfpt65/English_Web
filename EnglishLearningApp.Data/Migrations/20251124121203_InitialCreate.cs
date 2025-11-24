@@ -55,11 +55,51 @@ namespace EnglishLearningApp.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "PhoneVerifications",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    VerificationCode = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    IsUsed = table.Column<bool>(type: "bit", nullable: false),
+                    Purpose = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PhoneVerifications", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SystemStatistics",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Date = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    TotalUsers = table.Column<int>(type: "int", nullable: false),
+                    TotalStudents = table.Column<int>(type: "int", nullable: false),
+                    TotalTeachers = table.Column<int>(type: "int", nullable: false),
+                    TotalClasses = table.Column<int>(type: "int", nullable: false),
+                    TotalVocabularies = table.Column<int>(type: "int", nullable: false),
+                    TotalChatSessions = table.Column<int>(type: "int", nullable: false),
+                    TotalQuizzes = table.Column<int>(type: "int", nullable: false),
+                    ActiveUsersToday = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SystemStatistics", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    PhoneNumberConfirmed = table.Column<bool>(type: "bit", nullable: false),
                     PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     FullName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     AvatarUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -172,6 +212,41 @@ namespace EnglishLearningApp.Data.Migrations
                     table.ForeignKey(
                         name: "FK_ClassRooms_Users_TeacherId",
                         column: x => x.TeacherId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TeacherApprovals",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    FullName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Qualification = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Experience = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CertificateUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Status = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    RejectionReason = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    ApprovedByAdminId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReviewedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TeacherApprovals", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TeacherApprovals_Users_ApprovedByAdminId",
+                        column: x => x.ApprovedByAdminId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TeacherApprovals_Users_UserId",
+                        column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -344,6 +419,35 @@ namespace EnglishLearningApp.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ClassAchievements",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ClassRoomId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AchievementType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    EarnedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClassAchievements", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ClassAchievements_ClassRooms_ClassRoomId",
+                        column: x => x.ClassRoomId,
+                        principalTable: "ClassRooms",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ClassAchievements_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ClassMembers",
                 columns: table => new
                 {
@@ -364,6 +468,36 @@ namespace EnglishLearningApp.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_ClassMembers_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ClassMemberStats",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ClassRoomId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    VocabulariesLearned = table.Column<int>(type: "int", nullable: false),
+                    QuizzesCompleted = table.Column<int>(type: "int", nullable: false),
+                    AverageQuizScore = table.Column<double>(type: "float", nullable: false),
+                    TotalPoints = table.Column<int>(type: "int", nullable: false),
+                    LastUpdated = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClassMemberStats", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ClassMemberStats_ClassRooms_ClassRoomId",
+                        column: x => x.ClassRoomId,
+                        principalTable: "ClassRooms",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ClassMemberStats_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -392,6 +526,37 @@ namespace EnglishLearningApp.Data.Migrations
                     table.ForeignKey(
                         name: "FK_ClassMessages_Users_SenderId",
                         column: x => x.SenderId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ClassQuizzes",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ClassRoomId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CreatedById = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Title = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    DueDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    TimeLimit = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClassQuizzes", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ClassQuizzes_ClassRooms_ClassRoomId",
+                        column: x => x.ClassRoomId,
+                        principalTable: "ClassRooms",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ClassQuizzes_Users_CreatedById",
+                        column: x => x.CreatedById,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -449,6 +614,66 @@ namespace EnglishLearningApp.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ClassQuizAttempts",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    QuizId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Score = table.Column<int>(type: "int", nullable: false),
+                    TotalQuestions = table.Column<int>(type: "int", nullable: false),
+                    StartedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    CompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsCompleted = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClassQuizAttempts", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ClassQuizAttempts_ClassQuizzes_QuizId",
+                        column: x => x.QuizId,
+                        principalTable: "ClassQuizzes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ClassQuizAttempts_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ClassQuizQuestions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    QuizId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    VocabularyId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    QuestionType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    QuestionText = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CorrectAnswer = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Options = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Order = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClassQuizQuestions", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ClassQuizQuestions_ClassQuizzes_QuizId",
+                        column: x => x.QuizId,
+                        principalTable: "ClassQuizzes",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ClassQuizQuestions_Vocabularies_VocabularyId",
+                        column: x => x.VocabularyId,
+                        principalTable: "Vocabularies",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "UserTestAnswers",
                 columns: table => new
                 {
@@ -475,6 +700,33 @@ namespace EnglishLearningApp.Data.Migrations
                         onDelete: ReferentialAction.Restrict);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "ClassQuizAnswers",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AttemptId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    QuestionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserAnswer = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IsCorrect = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ClassQuizAnswers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ClassQuizAnswers_ClassQuizAttempts_AttemptId",
+                        column: x => x.AttemptId,
+                        principalTable: "ClassQuizAttempts",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ClassQuizAnswers_ClassQuizQuestions_QuestionId",
+                        column: x => x.QuestionId,
+                        principalTable: "ClassQuizQuestions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_ChatMessages_ChatSessionId",
                 table: "ChatMessages",
@@ -483,6 +735,16 @@ namespace EnglishLearningApp.Data.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_ChatSessions_UserId",
                 table: "ChatSessions",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassAchievements_ClassRoomId",
+                table: "ClassAchievements",
+                column: "ClassRoomId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassAchievements_UserId",
+                table: "ClassAchievements",
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
@@ -496,6 +758,16 @@ namespace EnglishLearningApp.Data.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ClassMemberStats_ClassRoomId",
+                table: "ClassMemberStats",
+                column: "ClassRoomId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassMemberStats_UserId",
+                table: "ClassMemberStats",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ClassMessages_ClassRoomId",
                 table: "ClassMessages",
                 column: "ClassRoomId");
@@ -504,6 +776,46 @@ namespace EnglishLearningApp.Data.Migrations
                 name: "IX_ClassMessages_SenderId",
                 table: "ClassMessages",
                 column: "SenderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassQuizAnswers_AttemptId",
+                table: "ClassQuizAnswers",
+                column: "AttemptId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassQuizAnswers_QuestionId",
+                table: "ClassQuizAnswers",
+                column: "QuestionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassQuizAttempts_QuizId",
+                table: "ClassQuizAttempts",
+                column: "QuizId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassQuizAttempts_UserId",
+                table: "ClassQuizAttempts",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassQuizQuestions_QuizId",
+                table: "ClassQuizQuestions",
+                column: "QuizId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassQuizQuestions_VocabularyId",
+                table: "ClassQuizQuestions",
+                column: "VocabularyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassQuizzes_ClassRoomId",
+                table: "ClassQuizzes",
+                column: "ClassRoomId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ClassQuizzes_CreatedById",
+                table: "ClassQuizzes",
+                column: "CreatedById");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ClassRooms_TeacherId",
@@ -519,6 +831,16 @@ namespace EnglishLearningApp.Data.Migrations
                 name: "IX_GameQuestions_GameId",
                 table: "GameQuestions",
                 column: "GameId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeacherApprovals_ApprovedByAdminId",
+                table: "TeacherApprovals",
+                column: "ApprovedByAdminId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeacherApprovals_UserId",
+                table: "TeacherApprovals",
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TestQuestions_TestId",
@@ -598,16 +920,34 @@ namespace EnglishLearningApp.Data.Migrations
                 name: "ChatMessages");
 
             migrationBuilder.DropTable(
+                name: "ClassAchievements");
+
+            migrationBuilder.DropTable(
                 name: "ClassMembers");
 
             migrationBuilder.DropTable(
+                name: "ClassMemberStats");
+
+            migrationBuilder.DropTable(
                 name: "ClassMessages");
+
+            migrationBuilder.DropTable(
+                name: "ClassQuizAnswers");
 
             migrationBuilder.DropTable(
                 name: "GameQuestions");
 
             migrationBuilder.DropTable(
                 name: "GrammarNotes");
+
+            migrationBuilder.DropTable(
+                name: "PhoneVerifications");
+
+            migrationBuilder.DropTable(
+                name: "SystemStatistics");
+
+            migrationBuilder.DropTable(
+                name: "TeacherApprovals");
 
             migrationBuilder.DropTable(
                 name: "TranslationHistories");
@@ -631,7 +971,10 @@ namespace EnglishLearningApp.Data.Migrations
                 name: "ChatSessions");
 
             migrationBuilder.DropTable(
-                name: "ClassRooms");
+                name: "ClassQuizAttempts");
+
+            migrationBuilder.DropTable(
+                name: "ClassQuizQuestions");
 
             migrationBuilder.DropTable(
                 name: "Documents");
@@ -646,6 +989,9 @@ namespace EnglishLearningApp.Data.Migrations
                 name: "TestResults");
 
             migrationBuilder.DropTable(
+                name: "ClassQuizzes");
+
+            migrationBuilder.DropTable(
                 name: "Vocabularies");
 
             migrationBuilder.DropTable(
@@ -653,6 +999,9 @@ namespace EnglishLearningApp.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "Tests");
+
+            migrationBuilder.DropTable(
+                name: "ClassRooms");
 
             migrationBuilder.DropTable(
                 name: "Users");

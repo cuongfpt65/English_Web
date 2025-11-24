@@ -41,9 +41,7 @@ public class AuthService : IAuthService
         if (user == null)
         {
             throw new UnauthorizedAccessException("Invalid credentials");
-        }
-
-        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+        }        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
         if (result == PasswordVerificationResult.Failed)
         {
             throw new UnauthorizedAccessException("Invalid credentials");
@@ -60,6 +58,7 @@ public class AuthService : IAuthService
                 Name = user.FullName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                Role = user.Role,
                 CreatedAt = user.CreatedAt
             }
         };
@@ -99,9 +98,7 @@ public class AuthService : IAuthService
             UpdatedAt = DateTime.UtcNow
         };
 
-        user.PasswordHash = _passwordHasher.HashPassword(user, password);
-
-        var createdUser = await _userRepository.CreateAsync(user);
+        user.PasswordHash = _passwordHasher.HashPassword(user, password);        var createdUser = await _userRepository.CreateAsync(user);
         var token = GenerateJwtToken(createdUser);
 
         return new
@@ -113,6 +110,7 @@ public class AuthService : IAuthService
                 Name = createdUser.FullName,
                 Email = createdUser.Email,
                 PhoneNumber = createdUser.PhoneNumber,
+                Role = createdUser.Role,
                 CreatedAt = createdUser.CreatedAt
             }
         };
@@ -164,9 +162,7 @@ public class AuthService : IAuthService
             {
                 throw new UnauthorizedAccessException("User not found");
             }
-        }
-
-        var token = GenerateJwtToken(user);
+        }        var token = GenerateJwtToken(user);
 
         return new
         {
@@ -177,6 +173,7 @@ public class AuthService : IAuthService
                 Name = user.FullName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                Role = user.Role,
                 CreatedAt = user.CreatedAt
             }
         };
@@ -187,9 +184,7 @@ public class AuthService : IAuthService
         // In a real app, send SMS via Twilio/AWS SNS
         var code = new Random().Next(100000, 999999).ToString();
         return await Task.FromResult(code);
-    }
-
-    private string GenerateJwtToken(AppUser user)
+    }    private string GenerateJwtToken(AppUser user)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             _configuration["Jwt:Key"] ?? "your-secret-key-here-make-it-long-enough"));
@@ -201,13 +196,13 @@ public class AuthService : IAuthService
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.FullName),
             new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Role, user.Role),
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"] ?? "EnglishLearningApp",
-            audience: _configuration["Jwt:Audience"] ?? "EnglishLearningApp",
+        var token = new JwtSecurityToken(            issuer: _configuration["Jwt:Issuer"] ?? "FPTLearnifyAI",
+            audience: _configuration["Jwt:Audience"] ?? "FPTLearnifyAI",
             claims: claims,
             expires: DateTime.Now.AddDays(7),
             signingCredentials: creds
