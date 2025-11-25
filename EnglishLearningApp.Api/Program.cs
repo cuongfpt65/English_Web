@@ -68,7 +68,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174")
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "https://fla.fptschoolsoctrang.edu.vn")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
