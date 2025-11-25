@@ -155,7 +155,77 @@ namespace EnglishLearningApp.Repository.Implementations
 
             await _context.SaveChangesAsync();
             return true;
-        }        public async Task<object> GetDashboardStatisticsAsync()
+        }
+
+        public async Task ApproveTeacherStatusAsync(Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new InvalidOperationException("User not found");
+            }
+
+            if (user.Role != "Teacher")
+            {
+                throw new InvalidOperationException("User is not a teacher");
+            }
+
+            if (user.Status != "Pending")
+            {
+                throw new InvalidOperationException("User is not in pending status");
+            }
+
+            user.Status = "Active";
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task RejectTeacherStatusAsync(Guid userId, string reason)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new InvalidOperationException("User not found");
+            }
+
+            if (user.Role != "Teacher")
+            {
+                throw new InvalidOperationException("User is not a teacher");
+            }
+
+            if (user.Status != "Pending")
+            {
+                throw new InvalidOperationException("User is not in pending status");
+            }
+
+            user.Status = "Rejected";
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            // You could also log the rejection reason in a separate table if needed
+        }
+
+        public async Task<IEnumerable<object>> GetPendingTeachersAsync()
+        {
+            var pendingTeachers = await _context.Users
+                .Where(u => u.Role == "Teacher" && u.Status == "Pending")
+                .Select(u => new
+                {
+                    Id = u.Id,
+                    FullName = u.FullName,
+                    Email = u.Email,
+                    PhoneNumber = u.PhoneNumber,
+                    CreatedAt = u.CreatedAt,
+                    Status = u.Status
+                })
+                .ToListAsync();
+
+            return pendingTeachers;
+        }
+
+        public async Task<object> GetDashboardStatisticsAsync()
         {
             try
             {
@@ -233,7 +303,9 @@ namespace EnglishLearningApp.Repository.Implementations
             {
                 throw new Exception($"Error getting dashboard statistics: {ex.Message}", ex);
             }
-        }        public async Task<object> GetUserStatisticsAsync()
+        }
+
+        public async Task<object> GetUserStatisticsAsync()
         {
             try
             {
@@ -266,7 +338,9 @@ namespace EnglishLearningApp.Repository.Implementations
             {
                 throw new Exception($"Error getting user statistics: {ex.Message}", ex);
             }
-        }        public async Task<object> GetClassStatisticsAsync()
+        }
+
+        public async Task<object> GetClassStatisticsAsync()
         {
             try
             {
@@ -302,7 +376,9 @@ namespace EnglishLearningApp.Repository.Implementations
             {
                 throw new Exception($"Error getting class statistics: {ex.Message}", ex);
             }
-        }        public async Task<object> GetVocabularyStatisticsAsync()
+        }
+
+        public async Task<object> GetVocabularyStatisticsAsync()
         {
             try
             {
@@ -331,7 +407,9 @@ namespace EnglishLearningApp.Repository.Implementations
             {
                 throw new Exception($"Error getting vocabulary statistics: {ex.Message}", ex);
             }
-        }        public async Task<object> GetQuizStatisticsAsync()
+        }
+
+        public async Task<object> GetQuizStatisticsAsync()
         {
             try
             {
@@ -380,7 +458,9 @@ namespace EnglishLearningApp.Repository.Implementations
             {
                 throw new Exception($"Error getting quiz statistics: {ex.Message}", ex);
             }
-        }        public async Task<object> GetChatStatisticsAsync()
+        }
+
+        public async Task<object> GetChatStatisticsAsync()
         {
             try
             {
@@ -424,7 +504,9 @@ namespace EnglishLearningApp.Repository.Implementations
             {
                 throw new Exception($"Error getting chat statistics: {ex.Message}", ex);
             }
-        }        public async Task<IEnumerable<object>> GetRecentActivitiesAsync(int limit = 10)
+        }
+
+        public async Task<IEnumerable<object>> GetRecentActivitiesAsync(int limit = 10)
         {
             try
             {

@@ -11,9 +11,9 @@ namespace EnglishLearningApp.Data.Entities.User
         public string? PhoneNumber { get; set; }
         public bool PhoneNumberConfirmed { get; set; } = false;
         public string PasswordHash { get; set; } = null!;
-        public string FullName { get; set; } = null!;
-        public string? AvatarUrl { get; set; }
+        public string FullName { get; set; } = null!;        public string? AvatarUrl { get; set; }
         public string Role { get; set; } = "Student";
+        public string Status { get; set; } = "Active"; // Active, Pending, Rejected, Suspended
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

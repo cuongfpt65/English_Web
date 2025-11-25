@@ -1,14 +1,18 @@
 namespace EnglishLearningApp.Service.Interfaces
 {
     public interface IAdminService
-    {
-        // Teacher Approval Management
+    {        // Teacher Approval Management
         Task<object> RequestTeacherApprovalAsync(Guid userId, string fullName, string email, string? phoneNumber, string qualification, string experience, string? certificateUrl);
         Task<IEnumerable<object>> GetPendingApprovalsAsync();
         Task<IEnumerable<object>> GetAllApprovalsAsync();
         Task<object?> GetApprovalByIdAsync(Guid id);
         Task<bool> ApproveTeacherAsync(Guid approvalId, Guid adminId);
         Task<bool> RejectTeacherAsync(Guid approvalId, Guid adminId, string reason);
+        
+        // New teacher approval methods
+        Task ApproveTeacherAsync(Guid userId);
+        Task RejectTeacherAsync(Guid userId, string reason);
+        Task<IEnumerable<object>> GetPendingTeachersAsync();
         
         // Statistics
         Task<object> GetDashboardStatisticsAsync();

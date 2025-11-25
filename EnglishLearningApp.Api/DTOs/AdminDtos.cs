@@ -47,3 +47,19 @@ public class ToggleUserStatusDto
     [Required]
     public bool IsActive { get; set; }
 }
+
+public class RejectTeacherDto
+{
+    [Required]
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class PendingTeacherDto
+{
+    public Guid Id { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? PhoneNumber { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string Status { get; set; } = string.Empty;
+}

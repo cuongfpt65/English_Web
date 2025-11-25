@@ -36,18 +36,32 @@ public class AuthService : IAuthService
         // Check if it's email or phone
         var user = emailOrPhone.Contains("@")
             ? await _userRepository.GetByEmailAsync(emailOrPhone)
-            : await _userRepository.GetByPhoneAsync(emailOrPhone);
-
-        if (user == null)
-        {
-            throw new UnauthorizedAccessException("Invalid credentials");
-        }        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
-        if (result == PasswordVerificationResult.Failed)
+            : await _userRepository.GetByPhoneAsync(emailOrPhone);        if (user == null)
         {
             throw new UnauthorizedAccessException("Invalid credentials");
         }
 
-        var token = GenerateJwtToken(user);
+        // Check user status
+        if (user.Status == "Pending")
+        {
+            throw new UnauthorizedAccessException("Tài khoản của bạn đang chờ phê duyệt từ quản trị viên");
+        }
+        
+        if (user.Status == "Rejected")
+        {
+            throw new UnauthorizedAccessException("Tài khoản của bạn đã bị từ chối");
+        }
+        
+        if (user.Status == "Suspended")
+        {
+            throw new UnauthorizedAccessException("Tài khoản của bạn đã bị tạm khóa");
+        }
+
+        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+        if (result == PasswordVerificationResult.Failed)
+        {
+            throw new UnauthorizedAccessException("Invalid credentials");
+        }        var token = GenerateJwtToken(user);
 
         return new
         {
@@ -59,18 +73,21 @@ public class AuthService : IAuthService
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 Role = user.Role,
+                Status = user.Status,
                 CreatedAt = user.CreatedAt
             }
         };
-    }
-
-    public async Task<object> RegisterAsync(object request)
+    }    public async Task<object> RegisterAsync(object request)
     {
         dynamic req = request;
         string name = req.Name;
         string email = req.Email;
         string password = req.Password;
         string? phoneNumber = req.PhoneNumber;
+        string role = req.Role ?? "Student";
+
+        // Validate password strength
+        ValidatePassword(password);
 
         // Check if user already exists
         var existingUser = await _userRepository.GetByEmailAsync(email);
@@ -88,17 +105,24 @@ public class AuthService : IAuthService
             }
         }
 
+        // Determine user status based on role
+        string userStatus = role.Equals("Teacher", StringComparison.OrdinalIgnoreCase) 
+            ? "Pending" 
+            : "Active";
+
         var user = new AppUser
         {
             Id = Guid.NewGuid(),
             FullName = name,
             Email = email,
             PhoneNumber = phoneNumber,
+            Role = role,
+            Status = userStatus,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
-        user.PasswordHash = _passwordHasher.HashPassword(user, password);        var createdUser = await _userRepository.CreateAsync(user);
+        user.PasswordHash = _passwordHasher.HashPassword(user, password);var createdUser = await _userRepository.CreateAsync(user);
         var token = GenerateJwtToken(createdUser);
 
         return new
@@ -109,11 +133,40 @@ public class AuthService : IAuthService
                 Id = createdUser.Id.ToString(),
                 Name = createdUser.FullName,
                 Email = createdUser.Email,
-                PhoneNumber = createdUser.PhoneNumber,
-                Role = createdUser.Role,
+                PhoneNumber = createdUser.PhoneNumber,                Role = createdUser.Role,
+                Status = createdUser.Status,
                 CreatedAt = createdUser.CreatedAt
             }
         };
+    }
+
+    private void ValidatePassword(string password)
+    {
+        if (password.Length < 8)
+        {
+            throw new InvalidOperationException("Mật khẩu phải có ít nhất 8 ký tự");
+        }
+
+        if (!password.Any(char.IsUpper))
+        {
+            throw new InvalidOperationException("Mật khẩu phải chứa ít nhất 1 chữ hoa");
+        }
+
+        if (!password.Any(char.IsLower))
+        {
+            throw new InvalidOperationException("Mật khẩu phải chứa ít nhất 1 chữ thường");
+        }
+
+        if (!password.Any(char.IsDigit))
+        {
+            throw new InvalidOperationException("Mật khẩu phải chứa ít nhất 1 số");
+        }
+
+        var specialChars = "@$!%*?&";
+        if (!password.Any(c => specialChars.Contains(c)))
+        {
+            throw new InvalidOperationException("Mật khẩu phải chứa ít nhất 1 ký tự đặc biệt (@$!%*?&)");
+        }
     }
 
     public async Task<object> LoginWithPhoneAsync(object request)

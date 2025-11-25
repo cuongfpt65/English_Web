@@ -10,6 +10,11 @@ namespace EnglishLearningApp.Repository.Interfaces
         Task<bool> ApproveTeacherAsync(Guid approvalId, Guid adminId);
         Task<bool> RejectTeacherAsync(Guid approvalId, Guid adminId, string reason);
         
+        // New teacher approval methods
+        Task ApproveTeacherStatusAsync(Guid userId);
+        Task RejectTeacherStatusAsync(Guid userId, string reason);
+        Task<IEnumerable<object>> GetPendingTeachersAsync();
+
         // Statistics
         Task<object> GetDashboardStatisticsAsync();
         Task<object> GetUserStatisticsAsync();

@@ -42,6 +42,21 @@ namespace EnglishLearningApp.Service.Implementations
             return await _adminRepository.RejectTeacherAsync(approvalId, adminId, reason);
         }
 
+        public async Task ApproveTeacherAsync(Guid userId)
+        {
+            await _adminRepository.ApproveTeacherStatusAsync(userId);
+        }
+
+        public async Task RejectTeacherAsync(Guid userId, string reason)
+        {
+            await _adminRepository.RejectTeacherStatusAsync(userId, reason);
+        }
+
+        public async Task<IEnumerable<object>> GetPendingTeachersAsync()
+        {
+            return await _adminRepository.GetPendingTeachersAsync();
+        }
+
         public async Task<object> GetDashboardStatisticsAsync()
         {
             return await _adminRepository.GetDashboardStatisticsAsync();

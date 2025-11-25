@@ -137,6 +137,59 @@ namespace EnglishLearningApp.Api.Controllers
             }
         }
 
+        [HttpPost("users/{userId}/approve")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ApproveTeacher(Guid userId)
+        {
+            try
+            {
+                await _adminService.ApproveTeacherAsync(userId);
+                return Ok(new { message = "Teacher approved successfully" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to approve teacher", error = ex.Message });
+            }
+        }
+
+        [HttpPost("users/{userId}/reject")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RejectTeacher(Guid userId, [FromBody] RejectTeacherDto request)
+        {
+            try
+            {
+                await _adminService.RejectTeacherAsync(userId, request.Reason);
+                return Ok(new { message = "Teacher rejected successfully" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to reject teacher", error = ex.Message });
+            }
+        }
+
+        [HttpGet("users/pending-teachers")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetPendingTeachers()
+        {
+            try
+            {
+                var teachers = await _adminService.GetPendingTeachersAsync();
+                return Ok(teachers);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to get pending teachers", error = ex.Message });
+            }
+        }
+
         // Statistics
 
         [HttpGet("statistics/dashboard")]

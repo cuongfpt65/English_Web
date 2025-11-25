@@ -21,10 +21,18 @@ public class RegisterRequestDto
     public string Email { get; set; } = string.Empty;
     
     [Required]
-    [MinLength(6)]
+    [MinLength(8, ErrorMessage = "Mật khẩu phải có ít nhất 8 ký tự")]
+    [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", ErrorMessage = "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt")]
     public string Password { get; set; } = string.Empty;
     
+    [Required]
+    [Compare("Password", ErrorMessage = "Xác nhận mật khẩu không khớp")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+    
     public string? PhoneNumber { get; set; }
+    
+    [Required]
+    public string Role { get; set; } = "Student"; // Student or Teacher
 }
 
 public class PhoneAuthRequestDto
@@ -67,8 +75,9 @@ public class UserDto
     public string Email { get; set; } = string.Empty;
     
     public string? PhoneNumber { get; set; }
+      public string Role { get; set; } = "Student";
     
-    public string Role { get; set; } = "Student";
+    public string Status { get; set; } = "Active";
     
     public DateTime CreatedAt { get; set; }
 }
