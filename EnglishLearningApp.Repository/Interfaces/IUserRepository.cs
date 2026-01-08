@@ -10,5 +10,11 @@ namespace EnglishLearningApp.Repository.Interfaces
         Task<AppUser> CreateAsync(AppUser user);
         Task<AppUser> UpdateAsync(AppUser user);
         Task<bool> ExistsAsync(string email, string? phoneNumber = null);
+        
+        // Password Reset methods
+        Task<PasswordResetToken> CreateResetTokenAsync(PasswordResetToken token);
+        Task<PasswordResetToken?> GetResetTokenAsync(string email, string code);
+        Task<bool> MarkTokenAsUsedAsync(Guid tokenId);
+        Task DeleteExpiredTokensAsync(string email);
     }
 }

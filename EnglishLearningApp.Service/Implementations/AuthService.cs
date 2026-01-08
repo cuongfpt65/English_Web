@@ -15,15 +15,18 @@ public class AuthService : IAuthService
     private readonly IUserRepository _userRepository;
     private readonly IPasswordHasher<AppUser> _passwordHasher;
     private readonly IConfiguration _configuration;
+    private readonly IEmailService _emailService;
 
     public AuthService(
         IUserRepository userRepository,
         IPasswordHasher<AppUser> passwordHasher,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IEmailService emailService)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _configuration = configuration;
+        _emailService = emailService;
     }
 
     public async Task<object> LoginAsync(object request)
@@ -237,7 +240,89 @@ public class AuthService : IAuthService
         // In a real app, send SMS via Twilio/AWS SNS
         var code = new Random().Next(100000, 999999).ToString();
         return await Task.FromResult(code);
-    }    private string GenerateJwtToken(AppUser user)
+    }
+
+    public async Task<bool> SendPasswordResetCodeAsync(string email)
+    {
+        // Check if user exists
+        var user = await _userRepository.GetByEmailAsync(email);
+        if (user == null)
+        {
+            // Return true anyway to prevent email enumeration
+            return true;
+        }
+
+        // Delete any existing expired tokens
+        await _userRepository.DeleteExpiredTokensAsync(email);
+
+        // Generate 6-digit code
+        var resetCode = new Random().Next(100000, 999999).ToString();
+
+        // Create reset token
+        var token = new PasswordResetToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Email = email,
+            ResetCode = resetCode,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+            IsUsed = false
+        };
+
+        await _userRepository.CreateResetTokenAsync(token);
+
+        // Send email
+        try
+        {
+            await _emailService.SendPasswordResetCodeAsync(email, resetCode);
+        }
+        catch (Exception)
+        {
+            // Log error but don't expose it to user
+            // In production, you might want to handle this differently
+        }
+
+        return true;
+    }
+
+    public async Task<bool> VerifyResetCodeAsync(string email, string code)
+    {
+        var token = await _userRepository.GetResetTokenAsync(email, code);
+        return token != null;
+    }
+
+    public async Task<bool> ResetPasswordAsync(string email, string code, string newPassword)
+    {
+        // Validate password strength
+        ValidatePassword(newPassword);
+
+        // Get and validate reset token
+        var token = await _userRepository.GetResetTokenAsync(email, code);
+        if (token == null)
+        {
+            throw new InvalidOperationException("Mã xác thực không hợp lệ hoặc đã hết hạn");
+        }
+
+        // Get user
+        var user = await _userRepository.GetByIdAsync(token.UserId);
+        if (user == null)
+        {
+            throw new InvalidOperationException("Người dùng không tồn tại");
+        }
+
+        // Update password
+        user.PasswordHash = _passwordHasher.HashPassword(user, newPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+        await _userRepository.UpdateAsync(user);
+
+        // Mark token as used
+        await _userRepository.MarkTokenAsUsedAsync(token.Id);
+
+        return true;
+    }
+
+    private string GenerateJwtToken(AppUser user)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
             _configuration["Jwt:Key"] ?? "your-secret-key-here-make-it-long-enough"));

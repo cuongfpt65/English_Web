@@ -55,6 +55,44 @@ public class UserRepository : IUserRepository
         
         return await query.AnyAsync();
     }
+
+    public async Task<PasswordResetToken> CreateResetTokenAsync(PasswordResetToken token)
+    {
+        _context.PasswordResetTokens.Add(token);
+        await _context.SaveChangesAsync();
+        return token;
+    }
+
+    public async Task<PasswordResetToken?> GetResetTokenAsync(string email, string code)
+    {
+        return await _context.PasswordResetTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => 
+                t.Email == email && 
+                t.ResetCode == code && 
+                !t.IsUsed && 
+                t.ExpiresAt > DateTime.UtcNow);
+    }
+
+    public async Task<bool> MarkTokenAsUsedAsync(Guid tokenId)
+    {
+        var token = await _context.PasswordResetTokens.FindAsync(tokenId);
+        if (token == null) return false;
+
+        token.IsUsed = true;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task DeleteExpiredTokensAsync(string email)
+    {
+        var expiredTokens = await _context.PasswordResetTokens
+            .Where(t => t.Email == email && (t.IsUsed || t.ExpiresAt <= DateTime.UtcNow))
+            .ToListAsync();
+
+        _context.PasswordResetTokens.RemoveRange(expiredTokens);
+        await _context.SaveChangesAsync();
+    }
 }
 
 /*public class VocabularyRepository : IVocabularyRepository

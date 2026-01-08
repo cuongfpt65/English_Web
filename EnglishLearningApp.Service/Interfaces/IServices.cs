@@ -6,6 +6,11 @@ public interface IAuthService
     Task<object> RegisterAsync(object request);
     Task<object> LoginWithPhoneAsync(object request);
     Task<string> SendVerificationCodeAsync(object request);
+    
+    // Password Reset methods
+    Task<bool> SendPasswordResetCodeAsync(string email);
+    Task<bool> VerifyResetCodeAsync(string email, string code);
+    Task<bool> ResetPasswordAsync(string email, string code, string newPassword);
 }
 
 public interface IVocabularyService
@@ -47,3 +52,4 @@ public interface IChatService
     Task<object> GetSessionMessagesAsync(Guid sessionId);
     Task<object> SendMessageAsync(Guid userId, Guid sessionId, string message);
 }
+

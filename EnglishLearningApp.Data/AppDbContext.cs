@@ -19,6 +19,7 @@ namespace EnglishLearningApp.Data
         public DbSet<AppUser> Users { get; set; }
         public DbSet<UserGoogleLogin> UserGoogleLogins { get; set; }
         public DbSet<PhoneVerification> PhoneVerifications { get; set; }
+        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
         // --- Chatbot ---
         public DbSet<ChatSession> ChatSessions { get; set; }
@@ -61,12 +62,17 @@ namespace EnglishLearningApp.Data
 
             // Cấu hình quan hệ quan trọng
 
+            // Configure Document -> User relationship explicitly
+            modelBuilder.Entity<Document>()
+                .HasOne(d => d.UploadedBy)
+                .WithMany()
+                .HasForeignKey(d => d.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
             {
                 relationship.DeleteBehavior = DeleteBehavior.Restrict;
             }
-
-
         }
     }
 }
