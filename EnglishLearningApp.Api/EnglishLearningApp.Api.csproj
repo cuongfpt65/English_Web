@@ -22,9 +22,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.6" />
-  </ItemGroup>
-
-  <ItemGroup>
+  </ItemGroup>  <ItemGroup>
     <ProjectReference Include="..\EnglishLearningApp.Service\EnglishLearningApp.Service.csproj" />
   </ItemGroup>
 

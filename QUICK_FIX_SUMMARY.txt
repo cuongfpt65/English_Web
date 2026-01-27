@@ -1,0 +1,113 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                     DOCUMENT VIEW/DOWNLOAD FIX                           ║
+║                          QUICK REFERENCE                                 ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ PROBLEM                                                                  │
+└──────────────────────────────────────────────────────────────────────────┘
+  ❌ 400 Bad Request when viewing documents
+  ❌ 400 Bad Request when downloading documents
+  ❌ Error: "Invalid column name 'Action'"
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ ROOT CAUSES                                                              │
+└──────────────────────────────────────────────────────────────────────────┘
+  1. Missing [Authorize] attribute on endpoints
+  2. Missing 'Action' column in UserDocumentHistories table
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ FIXES APPLIED ✅                                                         │
+└──────────────────────────────────────────────────────────────────────────┘
+  
+  FIX #1: Added [Authorize] Attribute
+  ────────────────────────────────────
+  File: DocumentController.cs
+  
+  [HttpPost("{id}/view")]
+  [Authorize]  ← ADDED
+  public async Task<IActionResult> RecordView(Guid id)
+  
+  [HttpPost("{id}/download")]
+  [Authorize]  ← ADDED
+  public async Task<IActionResult> RecordDownload(Guid id)
+  
+  
+  FIX #2: Added Missing Database Column
+  ──────────────────────────────────────
+  Migration: 20260127045843_AddActionColumnToUserDocumentHistories.cs
+  
+  ALTER TABLE [UserDocumentHistories] 
+  ADD [Action] nvarchar(50) NOT NULL DEFAULT N'View';
+  
+  ✅ Migration applied successfully
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ HOW TO TEST                                                              │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  STEP 1: Restart the API
+  ───────────────────────
+  cd d:\Backup\App\English\EnglishLearningApp.Api
+  dotnet run
+  
+  
+  STEP 2: Test in Browser
+  ────────────────────────
+  1. Login as a student
+  2. Navigate to Documents page
+  3. Click "View" on any document → Should open in new tab ✅
+  4. Click "Download" on any document → Should download file ✅
+  5. Check that NO 400 errors appear in console ✅
+  
+  
+  STEP 3: Verify Database
+  ────────────────────────
+  SELECT * FROM UserDocumentHistories
+  ORDER BY ViewedAt DESC;
+  
+  Expected: Records with Action = 'View' or 'Download' ✅
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ VERIFICATION QUERIES                                                     │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  -- Check table structure
+  SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_NAME = 'UserDocumentHistories';
+  
+  -- Check recent activity
+  SELECT TOP 10 
+      u.Name AS UserName,
+      d.Title AS DocumentTitle,
+      h.Action,
+      h.ViewedAt
+  FROM UserDocumentHistories h
+  JOIN Users u ON h.UserId = u.Id
+  JOIN Documents d ON h.DocumentId = d.Id
+  ORDER BY h.ViewedAt DESC;
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ FILES MODIFIED                                                           │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  ✏️  DocumentController.cs
+  ➕ 20260127045843_AddActionColumnToUserDocumentHistories.cs
+  📄 DOCUMENT_VIEW_DOWNLOAD_FIX.md
+  📄 USER_DOCUMENT_HISTORIES_FIX.md
+  📄 FixUserDocumentHistoriesTable.sql
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ STATUS: ✅ FIXED                                                         │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  Date: January 27, 2026
+  Time: ~15 minutes
+  Impact: Critical feature restored
+  
+  Next: Restart API and test with students
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║                    Fix complete! Ready to test! 🎉                      ║
+╚══════════════════════════════════════════════════════════════════════════╝

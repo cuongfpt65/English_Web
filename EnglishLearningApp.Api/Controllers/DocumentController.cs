@@ -1,5 +1,6 @@
 using EnglishLearningApp.Service.DTOs;
 using EnglishLearningApp.Service.Interfaces;
+using EnglishLearningApp.Api.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -8,7 +9,7 @@ namespace EnglishLearningApp.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
+
 public class DocumentController : ControllerBase
 {
     private readonly IDocumentService _documentService;
@@ -52,8 +53,7 @@ public class DocumentController : ControllerBase
             return Ok(new { success = true, data = category });
         }
         catch (Exception ex)
-        {
-            return BadRequest(new { success = false, message = ex.Message });
+        {            return BadRequest(new { success = false, message = ex.Message });
         }
     }
 
@@ -144,43 +144,64 @@ public class DocumentController : ControllerBase
             return Ok(new { success = true, data = document });
         }
         catch (Exception ex)
-        {
-            return BadRequest(new { success = false, message = ex.Message });
+        {            return BadRequest(new { success = false, message = ex.Message });
         }
     }    [HttpPost("upload")]
     [Authorize(Roles = "Teacher,Admin")]
     [RequestSizeLimit(52428800)] // 50MB
     [Consumes("multipart/form-data")]
-    public async Task<IActionResult> UploadDocument([FromForm] string title, [FromForm] string description, [FromForm] Guid categoryId, [FromForm] IFormFile file)
+    public async Task<IActionResult> UploadDocument([FromForm] DocumentUploadDto uploadDto)
     {
         try
         {
-            if (file == null || file.Length == 0)
+            Console.WriteLine("=== UPLOAD DOCUMENT ENDPOINT DEBUG ===");
+            Console.WriteLine($"Request ContentType: {Request.ContentType}");
+            Console.WriteLine($"Has Form Files: {Request.Form.Files.Count}");
+            Console.WriteLine($"Form Keys: {string.Join(", ", Request.Form.Keys)}");
+            
+            if (Request.Form.Files.Count > 0)
             {
+                var file = Request.Form.Files[0];
+                Console.WriteLine($"First File - Name: {file.Name}, FileName: {file.FileName}, Length: {file.Length}");
+            }
+            
+            Console.WriteLine($"UploadDto - Title: {uploadDto.Title}");
+            Console.WriteLine($"UploadDto - Description: {uploadDto.Description}");
+            Console.WriteLine($"UploadDto - CategoryId: {uploadDto.CategoryId}");
+            Console.WriteLine($"UploadDto - File: {uploadDto.File?.FileName ?? "NULL"}");
+            
+            if (uploadDto.File == null || uploadDto.File.Length == 0)
+            {
+                Console.WriteLine("ERROR: File is null or empty");
                 return BadRequest(new { success = false, message = "File is required" });
             }
 
             // Validate file size (50MB max)
-            if (file.Length > 52428800)
+            if (uploadDto.File.Length > 52428800)
             {
                 return BadRequest(new { success = false, message = "File size must not exceed 50MB" });
             }
 
             var dto = new CreateDocumentDto
             {
-                Title = title,
-                Description = description,
-                CategoryId = categoryId
+                Title = uploadDto.Title,
+                Description = uploadDto.Description,
+                CategoryId = uploadDto.CategoryId
             };
 
-            using var stream = file.OpenReadStream();
+            using var stream = uploadDto.File.OpenReadStream();
             var userId = GetUserId();
-            var document = await _documentService.UploadDocumentAsync(userId, dto, stream, file.FileName);
+            Console.WriteLine($"UserId: {userId}");
+            
+            var document = await _documentService.UploadDocumentAsync(userId, dto, stream, uploadDto.File.FileName);
 
+            Console.WriteLine($"Upload successful! Document ID: ");
             return Ok(new { success = true, data = document, message = "Document uploaded successfully" });
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"ERROR in UploadDocument: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
             return BadRequest(new { success = false, message = ex.Message });
         }
     }
@@ -221,9 +242,8 @@ public class DocumentController : ControllerBase
         {
             return BadRequest(new { success = false, message = ex.Message });
         }
-    }
-
-    [HttpPost("{id}/view")]
+    }    [HttpPost("{id}/view")]
+    [Authorize]
     public async Task<IActionResult> RecordView(Guid id)
     {
         try
@@ -239,6 +259,7 @@ public class DocumentController : ControllerBase
     }
 
     [HttpPost("{id}/download")]
+    [Authorize]
     public async Task<IActionResult> RecordDownload(Guid id)
     {
         try

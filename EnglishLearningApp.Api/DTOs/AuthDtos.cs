@@ -113,9 +113,43 @@ public class UserDto
     public string Email { get; set; } = string.Empty;
     
     public string? PhoneNumber { get; set; }
-      public string Role { get; set; } = "Student";
     
-    public string Status { get; set; } = "Active";
+    public string Role { get; set; } = "Student";
     
     public DateTime CreatedAt { get; set; }
+}
+
+public class SendEmailVerificationRequestDto
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+    
+    [Required]
+    public string Name { get; set; } = string.Empty;
+    
+    [Required]
+    [MinLength(8, ErrorMessage = "Mật khẩu phải có ít nhất 8 ký tự")]
+    [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", ErrorMessage = "Mật khẩu phải chứa ít nhất 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt")]
+    public string Password { get; set; } = string.Empty;
+    
+    [Required]
+    [Compare("Password", ErrorMessage = "Xác nhận mật khẩu không khớp")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+    
+    public string? PhoneNumber { get; set; }
+    
+    [Required]
+    public string Role { get; set; } = "Student";
+}
+
+public class VerifyEmailRequestDto
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+    
+    [Required]
+    [StringLength(6, MinimumLength = 6, ErrorMessage = "Mã xác thực phải có 6 ký tự")]
+    public string Code { get; set; } = string.Empty;
 }

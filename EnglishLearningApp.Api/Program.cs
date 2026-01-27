@@ -11,7 +11,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
-using EnglishLearningApp.Api.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,6 +38,7 @@ builder.Services.AddScoped<IClassRepository, ClassRepository>();
 builder.Services.AddScoped<IClassMemberRepository, ClassMemberRepository>();
 builder.Services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
 builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
+builder.Services.AddScoped<IChatRepository, ChatRepository>();
 builder.Services.AddScoped<IAdminRepository, AdminRepository>();
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 
@@ -85,7 +85,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "https://fla.fptschoolsoctrang.edu.vn")
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "https://fla.fptschoolsoctrang.edu.vn", "https://englishfpt.info.vn")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -123,12 +123,9 @@ builder.Services.AddSwaggerGen(options =>
                     Type = ReferenceType.SecurityScheme,
                     Id = "Bearer"
                 }
-            },
-            new string[] {}
+            },            new string[] {}
         }
     });
-      // Support for file uploads in Swagger
-    options.OperationFilter<FileUploadOperationFilter>();
 });
 
 // Add Swagger
@@ -144,6 +141,21 @@ if (app.Environment.IsDevelopment())
 
 // Enable static files to serve uploaded documents
 app.UseStaticFiles();
+
+// Add request logging middleware
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/api/document/upload"))
+    {
+        Console.WriteLine($"=== INCOMING REQUEST ===");
+        Console.WriteLine($"Method: {context.Request.Method}");
+        Console.WriteLine($"Path: {context.Request.Path}");
+        Console.WriteLine($"ContentType: {context.Request.ContentType}");
+        Console.WriteLine($"ContentLength: {context.Request.ContentLength}");
+        Console.WriteLine($"Has Form: {context.Request.HasFormContentType}");
+    }
+    await next();
+});
 
 // Comment out HTTPS redirection for now
 // app.UseHttpsRedirection();

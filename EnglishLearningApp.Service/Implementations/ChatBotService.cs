@@ -1,44 +1,69 @@
 ﻿namespace ERSP.Api.Services
 {
     using ERSP.Service.DTOs.Chatbot;
+    using EnglishLearningApp.Repository.Interfaces;
     using System.Text;
 
     public class ChatBotService
     {
         private readonly ChatNlpService _chatNlp;
         private readonly GeminiClient _gemini;
+        private readonly IChatRepository _chatRepository;
 
-        public ChatBotService(ChatNlpService chatNlp, GeminiClient gemini)
+        public ChatBotService(ChatNlpService chatNlp, GeminiClient gemini, IChatRepository chatRepository)
         {
             _chatNlp = chatNlp;
             _gemini = gemini;
+            _chatRepository = chatRepository;
         }
 
-        public async Task<string> HandleAsync(string userMessage, string type)
+        public async Task<string> HandleAsync(string userMessage, string type, Guid? sessionId = null, Guid? userId = null)
         {
+            // Lưu tin nhắn của user
+            if (sessionId.HasValue && userId.HasValue)
+            {
+                await _chatRepository.AddMessageAsync(sessionId.Value, "User", userMessage);
+            }
+
+            string botResponse;
             switch (type)
             {
                 case "smalltalk":
-                    return await HandleSmallTalkAsync(userMessage);
+                    botResponse = await HandleSmallTalkAsync(userMessage);
+                    break;
 
                 case "error":
-                    return await HandleErrorAsync(userMessage);
+                    botResponse = await HandleErrorAsync(userMessage);
+                    break;
 
                 case "grammar_fix":
-                    return await HandleGrammarFixAsync(userMessage);
+                    botResponse = await HandleGrammarFixAsync(userMessage);
+                    break;
 
                 case "answer_suggest":
-                    return await HandleAnswerSuggestAsync(userMessage);
+                    botResponse = await HandleAnswerSuggestAsync(userMessage);
+                    break;
 
                 case "structure_review":
-                    return await HandleStructureReviewAsync(userMessage);
+                    botResponse = await HandleStructureReviewAsync(userMessage);
+                    break;
 
                 case "essay":
-                    return await HandleEssayAsync(userMessage);
+                    botResponse = await HandleEssayAsync(userMessage);
+                    break;
 
                 default:
-                    return "Hiện tại hệ thống chưa có dịch vụ đó.";
+                    botResponse = "Hiện tại hệ thống chưa có dịch vụ đó.";
+                    break;
             }
+
+            // Lưu tin nhắn của bot
+            if (sessionId.HasValue && userId.HasValue)
+            {
+                await _chatRepository.AddMessageAsync(sessionId.Value, "Bot", botResponse);
+            }
+
+            return botResponse;
         }
 
         // -------------------------------------------------------------

@@ -8,12 +8,13 @@ namespace EnglishLearningApp.Data.Entities.User
     {
         public Guid Id { get; set; }
         public string Email { get; set; } = null!;
+        public bool EmailConfirmed { get; set; } = false;
         public string? PhoneNumber { get; set; }
         public bool PhoneNumberConfirmed { get; set; } = false;
         public string PasswordHash { get; set; } = null!;
         public string FullName { get; set; } = null!;        public string? AvatarUrl { get; set; }
         public string Role { get; set; } = "Student";
-        public string Status { get; set; } = "Active"; // Active, Pending, Rejected, Suspended
+        // Status property removed - use TeacherApproval table for teacher status
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -22,7 +23,7 @@ namespace EnglishLearningApp.Data.Entities.User
         public virtual ICollection<UserGameScore> GameScores { get; set; }
         public virtual ICollection<ClassMember> ClassMembers { get; set; }
         public virtual ICollection<TestResult> TestResults { get; set; }
-    }    public class UserGoogleLogin
+    }public class UserGoogleLogin
     {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }

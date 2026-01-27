@@ -57,5 +57,48 @@ MÃ XÁC THỰC CỦA BẠN:
 
             return Task.CompletedTask;
         }
+
+        public Task SendEmailVerificationCodeAsync(string email, string code)
+        {
+            // Log to console instead of sending real email
+            var message = $@"
+╔══════════════════════════════════════════════════════════════╗
+║           📧 MOCK EMAIL SERVICE (Development Mode)          ║
+╚══════════════════════════════════════════════════════════════╝
+
+TO: {email}
+SUBJECT: Xác thực email đăng ký tài khoản - FPT Learnify AI
+
+═══════════════════════════════════════════════════════════════
+
+Chào mừng bạn đến với FPT Learnify AI!
+
+Để hoàn tất quá trình đăng ký, vui lòng sử dụng mã xác thực bên dưới:
+
+MÃ XÁC THỰC CỦA BẠN:
+╔═══════════╗
+║  {code}  ║
+╚═══════════╝
+
+⏰ Mã này có hiệu lực trong 15 phút.
+
+📝 LƯU Ý:
+• Không chia sẻ mã này với bất kỳ ai
+• Mã sẽ hết hạn sau 15 phút
+• Nếu bạn không thực hiện đăng ký này, vui lòng bỏ qua email này
+
+Sau khi xác thực thành công, bạn có thể bắt đầu hành trình học tiếng Anh
+thú vị với chúng tôi! 🚀
+
+═══════════════════════════════════════════════════════════════
+
+© 2024 FPT Learnify AI
+";
+
+            _logger.LogInformation(message);
+            Console.WriteLine(message);
+
+            return Task.CompletedTask;
+        }
     }
 }

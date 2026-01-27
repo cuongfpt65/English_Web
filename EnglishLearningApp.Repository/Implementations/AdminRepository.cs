@@ -155,9 +155,7 @@ namespace EnglishLearningApp.Repository.Implementations
 
             await _context.SaveChangesAsync();
             return true;
-        }
-
-        public async Task ApproveTeacherStatusAsync(Guid userId)
+        }        public async Task ApproveTeacherStatusAsync(Guid userId)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -170,18 +168,21 @@ namespace EnglishLearningApp.Repository.Implementations
                 throw new InvalidOperationException("User is not a teacher");
             }
 
-            if (user.Status != "Pending")
+            // Check TeacherApproval table for pending status
+            var approval = await _context.TeacherApprovals
+                .FirstOrDefaultAsync(ta => ta.UserId == userId && ta.Status == "Pending");
+
+            if (approval == null)
             {
-                throw new InvalidOperationException("User is not in pending status");
+                throw new InvalidOperationException("No pending teacher approval found");
             }
 
-            user.Status = "Active";
+            approval.Status = "Approved";
+            approval.ReviewedAt = DateTime.UtcNow;
             user.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-        }
-
-        public async Task RejectTeacherStatusAsync(Guid userId, string reason)
+        }        public async Task RejectTeacherStatusAsync(Guid userId, string reason)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null)
@@ -194,31 +195,37 @@ namespace EnglishLearningApp.Repository.Implementations
                 throw new InvalidOperationException("User is not a teacher");
             }
 
-            if (user.Status != "Pending")
+            // Check TeacherApproval table for pending status
+            var approval = await _context.TeacherApprovals
+                .FirstOrDefaultAsync(ta => ta.UserId == userId && ta.Status == "Pending");
+
+            if (approval == null)
             {
-                throw new InvalidOperationException("User is not in pending status");
+                throw new InvalidOperationException("No pending teacher approval found");
             }
 
-            user.Status = "Rejected";
+            approval.Status = "Rejected";
+            approval.RejectionReason = reason;
+            approval.ReviewedAt = DateTime.UtcNow;
             user.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
-
-            // You could also log the rejection reason in a separate table if needed
-        }
-
-        public async Task<IEnumerable<object>> GetPendingTeachersAsync()
+        }        public async Task<IEnumerable<object>> GetPendingTeachersAsync()
         {
-            var pendingTeachers = await _context.Users
-                .Where(u => u.Role == "Teacher" && u.Status == "Pending")
-                .Select(u => new
+            var pendingTeachers = await _context.TeacherApprovals
+                .Where(ta => ta.Status == "Pending")
+                .Include(ta => ta.User)
+                .Select(ta => new
                 {
-                    Id = u.Id,
-                    FullName = u.FullName,
-                    Email = u.Email,
-                    PhoneNumber = u.PhoneNumber,
-                    CreatedAt = u.CreatedAt,
-                    Status = u.Status
+                    Id = ta.UserId,
+                    FullName = ta.FullName,
+                    Email = ta.Email,
+                    PhoneNumber = ta.PhoneNumber,
+                    Qualification = ta.Qualification,
+                    Experience = ta.Experience,
+                    CertificateUrl = ta.CertificateUrl,
+                    CreatedAt = ta.CreatedAt,
+                    Status = ta.Status
                 })
                 .ToListAsync();
 

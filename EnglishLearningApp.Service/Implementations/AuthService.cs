@@ -1,7 +1,10 @@
+using EnglishLearningApp.Data;
+using EnglishLearningApp.Data.Entities;
 using EnglishLearningApp.Data.Entities.User;
 using EnglishLearningApp.Repository.Interfaces;
 using EnglishLearningApp.Service.Interfaces;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -16,17 +19,20 @@ public class AuthService : IAuthService
     private readonly IPasswordHasher<AppUser> _passwordHasher;
     private readonly IConfiguration _configuration;
     private readonly IEmailService _emailService;
+    private readonly AppDbContext _context;
 
     public AuthService(
         IUserRepository userRepository,
         IPasswordHasher<AppUser> passwordHasher,
         IConfiguration configuration,
-        IEmailService emailService)
+        IEmailService emailService,
+        AppDbContext context)
     {
         _userRepository = userRepository;
         _passwordHasher = passwordHasher;
         _configuration = configuration;
         _emailService = emailService;
+        _context = context;
     }
 
     public async Task<object> LoginAsync(object request)
@@ -41,30 +47,36 @@ public class AuthService : IAuthService
             ? await _userRepository.GetByEmailAsync(emailOrPhone)
             : await _userRepository.GetByPhoneAsync(emailOrPhone);        if (user == null)
         {
-            throw new UnauthorizedAccessException("Invalid credentials");
+            throw new UnauthorizedAccessException(emailOrPhone.Contains("@") 
+                ? "Email không tồn tại trong hệ thống" 
+                : "Số điện thoại không tồn tại trong hệ thống");
         }
 
-        // Check user status
-        if (user.Status == "Pending")
+        // Check teacher approval status if user is a teacher
+        if (user.Role == "Teacher")
         {
-            throw new UnauthorizedAccessException("Tài khoản của bạn đang chờ phê duyệt từ quản trị viên");
-        }
-        
-        if (user.Status == "Rejected")
-        {
-            throw new UnauthorizedAccessException("Tài khoản của bạn đã bị từ chối");
-        }
-        
-        if (user.Status == "Suspended")
-        {
-            throw new UnauthorizedAccessException("Tài khoản của bạn đã bị tạm khóa");
-        }
+            var approval = await _context.TeacherApprovals
+                .FirstOrDefaultAsync(ta => ta.UserId == user.Id);
 
-        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+            if (approval != null)
+            {
+                if (approval.Status == "Pending")
+                {
+                    throw new UnauthorizedAccessException("Tài khoản của bạn đang chờ phê duyệt từ quản trị viên");
+                }
+
+                if (approval.Status == "Rejected")
+                {
+                    throw new UnauthorizedAccessException("Tài khoản của bạn đã bị từ chối. Lý do: " + (approval.RejectionReason ?? "Không rõ"));
+                }
+            }
+        }        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
         if (result == PasswordVerificationResult.Failed)
         {
-            throw new UnauthorizedAccessException("Invalid credentials");
-        }        var token = GenerateJwtToken(user);
+            throw new UnauthorizedAccessException("Mật khẩu không chính xác");
+        }
+
+        var token = GenerateJwtToken(user);
 
         return new
         {
@@ -76,11 +88,12 @@ public class AuthService : IAuthService
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
                 Role = user.Role,
-                Status = user.Status,
                 CreatedAt = user.CreatedAt
             }
         };
-    }    public async Task<object> RegisterAsync(object request)
+    }
+
+    public async Task<object> RegisterAsync(object request)
     {
         dynamic req = request;
         string name = req.Name;
@@ -108,11 +121,6 @@ public class AuthService : IAuthService
             }
         }
 
-        // Determine user status based on role
-        string userStatus = role.Equals("Teacher", StringComparison.OrdinalIgnoreCase) 
-            ? "Pending" 
-            : "Active";
-
         var user = new AppUser
         {
             Id = Guid.NewGuid(),
@@ -120,12 +128,13 @@ public class AuthService : IAuthService
             Email = email,
             PhoneNumber = phoneNumber,
             Role = role,
-            Status = userStatus,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
 
-        user.PasswordHash = _passwordHasher.HashPassword(user, password);var createdUser = await _userRepository.CreateAsync(user);
+        user.PasswordHash = _passwordHasher.HashPassword(user, password);
+
+        var createdUser = await _userRepository.CreateAsync(user);
         var token = GenerateJwtToken(createdUser);
 
         return new
@@ -136,8 +145,8 @@ public class AuthService : IAuthService
                 Id = createdUser.Id.ToString(),
                 Name = createdUser.FullName,
                 Email = createdUser.Email,
-                PhoneNumber = createdUser.PhoneNumber,                Role = createdUser.Role,
-                Status = createdUser.Status,
+                PhoneNumber = createdUser.PhoneNumber,
+                Role = createdUser.Role,
                 CreatedAt = createdUser.CreatedAt
             }
         };
@@ -218,7 +227,9 @@ public class AuthService : IAuthService
             {
                 throw new UnauthorizedAccessException("User not found");
             }
-        }        var token = GenerateJwtToken(user);
+        }
+
+        var token = GenerateJwtToken(user);
 
         return new
         {
@@ -322,6 +333,134 @@ public class AuthService : IAuthService
         return true;
     }
 
+    public async Task<bool> SendEmailVerificationCodeAsync(string email, string name, string password, string confirmPassword, string? phoneNumber, string role)
+    {
+        // Validate password
+        ValidatePassword(password);
+
+        if (password != confirmPassword)
+        {
+            throw new InvalidOperationException("Mật khẩu xác nhận không khớp");
+        }
+
+        // Check if user already exists
+        var existingUser = await _userRepository.GetByEmailAsync(email);
+        if (existingUser != null)
+        {
+            throw new InvalidOperationException("Email này đã được đăng ký");
+        }
+
+        if (!string.IsNullOrEmpty(phoneNumber))
+        {
+            var existingPhoneUser = await _userRepository.GetByPhoneAsync(phoneNumber);
+            if (existingPhoneUser != null)
+            {
+                throw new InvalidOperationException("Số điện thoại này đã được đăng ký");
+            }
+        }
+
+        // Delete any existing expired verification tokens for this email
+        var existingTokens = await _context.EmailVerificationTokens
+            .Where(t => t.Email == email)
+            .ToListAsync();
+
+        if (existingTokens.Any())
+        {
+            _context.EmailVerificationTokens.RemoveRange(existingTokens);
+            await _context.SaveChangesAsync();
+        }
+
+        // Generate 6-digit code
+        var verificationCode = new Random().Next(100000, 999999).ToString();
+
+        // Create temporary user data for hashing password
+        var tempUser = new AppUser { Email = email };
+        var hashedPassword = _passwordHasher.HashPassword(tempUser, password);
+
+        // Create verification token
+        var token = new EmailVerificationToken
+        {
+            Id = Guid.NewGuid(),
+            Email = email,
+            VerificationCode = verificationCode,
+            Name = name,
+            PasswordHash = hashedPassword,
+            PhoneNumber = phoneNumber,
+            Role = role,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+            IsUsed = false
+        };
+
+        _context.EmailVerificationTokens.Add(token);
+        await _context.SaveChangesAsync();
+
+        // Send verification email
+        await _emailService.SendEmailVerificationCodeAsync(email, verificationCode);
+
+        return true;
+    }
+
+    public async Task<object> VerifyEmailAndRegisterAsync(string email, string code)
+    {
+        // Find verification token
+        var token = await _context.EmailVerificationTokens
+            .FirstOrDefaultAsync(t =>
+                t.Email == email &&
+                t.VerificationCode == code &&
+                !t.IsUsed &&
+                t.ExpiresAt > DateTime.UtcNow);
+
+        if (token == null)
+        {
+            throw new InvalidOperationException("Mã xác thực không hợp lệ hoặc đã hết hạn");
+        }
+
+        // Check if user already exists (double check)
+        var existingUser = await _userRepository.GetByEmailAsync(email);
+        if (existingUser != null)
+        {
+            throw new InvalidOperationException("Email này đã được đăng ký");
+        }
+
+        // Create user
+        var user = new AppUser
+        {
+            Id = Guid.NewGuid(),
+            FullName = token.Name,
+            Email = token.Email,
+            PhoneNumber = token.PhoneNumber,
+            Role = token.Role,
+            PasswordHash = token.PasswordHash,
+            EmailConfirmed = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var createdUser = await _userRepository.CreateAsync(user);
+
+        // Mark token as used
+        token.IsUsed = true;
+        await _context.SaveChangesAsync();
+
+        // Generate JWT token
+        var jwtToken = GenerateJwtToken(createdUser);
+
+        return new
+        {
+            Token = jwtToken,
+            User = new
+            {
+                Id = createdUser.Id.ToString(),
+                Name = createdUser.FullName,
+                Email = createdUser.Email,
+                PhoneNumber = createdUser.PhoneNumber,
+                Role = createdUser.Role,
+                CreatedAt = createdUser.CreatedAt
+            }
+        };
+    }
+
     private string GenerateJwtToken(AppUser user)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
@@ -339,7 +478,8 @@ public class AuthService : IAuthService
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
-        var token = new JwtSecurityToken(            issuer: _configuration["Jwt:Issuer"] ?? "FPTLearnifyAI",
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"] ?? "FPTLearnifyAI",
             audience: _configuration["Jwt:Audience"] ?? "FPTLearnifyAI",
             claims: claims,
             expires: DateTime.Now.AddDays(7),

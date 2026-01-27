@@ -1,4 +1,5 @@
-﻿using EnglishLearningApp.Data.Entities.Admin;
+﻿using EnglishLearningApp.Data.Entities;
+using EnglishLearningApp.Data.Entities.Admin;
 using EnglishLearningApp.Data.Entities.Chatbot;
 using EnglishLearningApp.Data.Entities.Class;
 using EnglishLearningApp.Data.Entities.Document;
@@ -20,6 +21,7 @@ namespace EnglishLearningApp.Data
         public DbSet<UserGoogleLogin> UserGoogleLogins { get; set; }
         public DbSet<PhoneVerification> PhoneVerifications { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
 
         // --- Chatbot ---
         public DbSet<ChatSession> ChatSessions { get; set; }
@@ -54,9 +56,7 @@ namespace EnglishLearningApp.Data
 
         // --- Admin ---
         public DbSet<TeacherApproval> TeacherApprovals { get; set; }
-        public DbSet<SystemStatistics> SystemStatistics { get; set; }
-
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        public DbSet<SystemStatistics> SystemStatistics { get; set; }        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 

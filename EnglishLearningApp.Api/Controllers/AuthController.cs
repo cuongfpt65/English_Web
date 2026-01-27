@@ -33,6 +33,49 @@ namespace EnglishLearningApp.Api.Controllers
             }
         }
 
+        [HttpPost("send-email-verification")]
+        public async Task<IActionResult> SendEmailVerification([FromBody] SendEmailVerificationRequestDto request)
+        {
+            try
+            {
+                await _authService.SendEmailVerificationCodeAsync(
+                    request.Email, 
+                    request.Name, 
+                    request.Password, 
+                    request.ConfirmPassword, 
+                    request.PhoneNumber, 
+                    request.Role);
+                
+                return Ok(new { message = "Mã xác thực đã được gửi đến email của bạn" });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Không thể gửi mã xác thực", error = ex.Message });
+            }
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequestDto request)
+        {
+            try
+            {
+                var result = await _authService.VerifyEmailAndRegisterAsync(request.Email, request.Code);
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Xác thực thất bại", error = ex.Message });
+            }
+        }
+
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequestDto request)
         {

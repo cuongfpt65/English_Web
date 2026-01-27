@@ -13,29 +13,30 @@
         public GeminiClient(HttpClient httpClient, IConfiguration config)
         {
             _httpClient = httpClient;
-            _apiKey = config["Gemini:ApiKey"]
-                      ?? throw new Exception("Gemini:ApiKey is not configured");
+            _apiKey = config["OpenAI:ApiKey"]
+                      ?? throw new Exception("OpenAI:ApiKey is not configured");
         }
 
         public async Task<string> GenerateAsync(string prompt)
         {
-            var url =
-                $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={_apiKey}";
+            var url = "https://api.openai.com/v1/chat/completions";
 
             var body = new
             {
-                contents = new[]
+                model = "gpt-3.5-turbo",
+                messages = new[]
                 {
-                new
-                {
-                    role = "user",
-                    parts = new[]
+                    new
                     {
-                        new { text = prompt }
+                        role = "user",
+                        content = prompt
                     }
-                }
-            }
+                },
+                temperature = 0.7
             };
+
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
 
             using var response = await _httpClient.PostAsJsonAsync(url, body);
             response.EnsureSuccessStatusCode();
@@ -43,17 +44,16 @@
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
             
-            var candidates = doc.RootElement.GetProperty("candidates");
-            if (candidates.GetArrayLength() == 0)
+            var choices = doc.RootElement.GetProperty("choices");
+            if (choices.GetArrayLength() == 0)
                 return "Hiện tại chưa có dịch vụ đó";
 
-            var text = candidates[0]
+            var text = choices[0]
+                .GetProperty("message")
                 .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
                 .GetString();
             text = CleanMarkdownJson(text);
-            Console.WriteLine("Gemini Response: " + text);
+            Console.WriteLine("ChatGPT Response: " + text);
             return string.IsNullOrWhiteSpace(text) ? "Hiện tại chưa có dịch vụ đó" : text;
         }
         private static string CleanMarkdownJson(string text)
