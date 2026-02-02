@@ -1,5 +1,6 @@
 using EnglishLearningApp.Data;
 using EnglishLearningApp.Data.Entities;
+using EnglishLearningApp.Data.Entities.Admin;
 using EnglishLearningApp.Data.Entities.User;
 using EnglishLearningApp.Repository.Interfaces;
 using EnglishLearningApp.Service.Interfaces;
@@ -52,31 +53,38 @@ public class AuthService : IAuthService
                 : "Số điện thoại không tồn tại trong hệ thống");
         }
 
+        // Check if account is active
+        if (!user.IsActive)
+        {
+            throw new UnauthorizedAccessException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.");
+        }
+
         // Check teacher approval status if user is a teacher
         if (user.Role == "Teacher")
         {
             var approval = await _context.TeacherApprovals
                 .FirstOrDefaultAsync(ta => ta.UserId == user.Id);
 
-            if (approval != null)
+            // If no approval record exists, teacher was created before approval system or somehow bypassed it
+            if (approval == null)
             {
-                if (approval.Status == "Pending")
-                {
-                    throw new UnauthorizedAccessException("Tài khoản của bạn đang chờ phê duyệt từ quản trị viên");
-                }
-
-                if (approval.Status == "Rejected")
-                {
-                    throw new UnauthorizedAccessException("Tài khoản của bạn đã bị từ chối. Lý do: " + (approval.RejectionReason ?? "Không rõ"));
-                }
+                throw new UnauthorizedAccessException("Tài khoản giáo viên chưa được phê duyệt. Vui lòng liên hệ quản trị viên.");
             }
-        }        var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
+
+            if (approval.Status == "Pending")
+            {
+                throw new UnauthorizedAccessException("Tài khoản của bạn đang chờ phê duyệt từ quản trị viên");
+            }
+
+            if (approval.Status == "Rejected")
+            {
+                throw new UnauthorizedAccessException("Tài khoản của bạn đã bị từ chối. Lý do: " + (approval.RejectionReason ?? "Không rõ"));
+            }
+        }var result = _passwordHasher.VerifyHashedPassword(user, user.PasswordHash, password);
         if (result == PasswordVerificationResult.Failed)
         {
             throw new UnauthorizedAccessException("Mật khẩu không chính xác");
-        }
-
-        var token = GenerateJwtToken(user);
+        }        var token = GenerateJwtToken(user);
 
         return new
         {
@@ -87,6 +95,7 @@ public class AuthService : IAuthService
                 Name = user.FullName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Role = user.Role,
                 CreatedAt = user.CreatedAt
             }
@@ -132,9 +141,43 @@ public class AuthService : IAuthService
             UpdatedAt = DateTime.UtcNow
         };
 
-        user.PasswordHash = _passwordHasher.HashPassword(user, password);
+        user.PasswordHash = _passwordHasher.HashPassword(user, password);        var createdUser = await _userRepository.CreateAsync(user);
+        
+        // If user is a teacher, create a TeacherApproval record with Pending status
+        if (role == "Teacher")
+        {
+            var teacherApproval = new TeacherApproval
+            {
+                Id = Guid.NewGuid(),
+                UserId = createdUser.Id,
+                FullName = createdUser.FullName,
+                Email = createdUser.Email,
+                PhoneNumber = createdUser.PhoneNumber,
+                Qualification = "Chưa cập nhật", // Default values
+                Experience = "Chưa cập nhật",
+                Status = "Pending",
+                CreatedAt = DateTime.UtcNow
+            };
 
-        var createdUser = await _userRepository.CreateAsync(user);
+            _context.TeacherApprovals.Add(teacherApproval);
+            await _context.SaveChangesAsync();            // Return response indicating pending approval (don't generate token)
+            return new
+            {
+                Message = "Đăng ký thành công! Tài khoản giáo viên của bạn đang chờ phê duyệt từ quản trị viên.",
+                User = new
+                {
+                    Id = createdUser.Id.ToString(),
+                    Name = createdUser.FullName,
+                    Email = createdUser.Email,
+                    PhoneNumber = createdUser.PhoneNumber,
+                    AvatarUrl = createdUser.AvatarUrl,
+                    Role = createdUser.Role,
+                    Status = "Pending",
+                    CreatedAt = createdUser.CreatedAt
+                }
+            };
+        }
+        
         var token = GenerateJwtToken(createdUser);
 
         return new
@@ -146,6 +189,7 @@ public class AuthService : IAuthService
                 Name = createdUser.FullName,
                 Email = createdUser.Email,
                 PhoneNumber = createdUser.PhoneNumber,
+                AvatarUrl = createdUser.AvatarUrl,
                 Role = createdUser.Role,
                 CreatedAt = createdUser.CreatedAt
             }
@@ -219,17 +263,20 @@ public class AuthService : IAuthService
             };
 
             user = await _userRepository.CreateAsync(user);
-        }
-        else
+        }        else
         {
             user = await _userRepository.GetByPhoneAsync(phoneNumber);
             if (user == null)
             {
                 throw new UnauthorizedAccessException("User not found");
             }
-        }
 
-        var token = GenerateJwtToken(user);
+            // Check if account is active
+            if (!user.IsActive)
+            {
+                throw new UnauthorizedAccessException("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.");
+            }
+        }        var token = GenerateJwtToken(user);
 
         return new
         {
@@ -240,6 +287,7 @@ public class AuthService : IAuthService
                 Name = user.FullName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                AvatarUrl = user.AvatarUrl,
                 Role = user.Role,
                 CreatedAt = user.CreatedAt
             }
@@ -328,137 +376,7 @@ public class AuthService : IAuthService
         await _userRepository.UpdateAsync(user);
 
         // Mark token as used
-        await _userRepository.MarkTokenAsUsedAsync(token.Id);
-
-        return true;
-    }
-
-    public async Task<bool> SendEmailVerificationCodeAsync(string email, string name, string password, string confirmPassword, string? phoneNumber, string role)
-    {
-        // Validate password
-        ValidatePassword(password);
-
-        if (password != confirmPassword)
-        {
-            throw new InvalidOperationException("Mật khẩu xác nhận không khớp");
-        }
-
-        // Check if user already exists
-        var existingUser = await _userRepository.GetByEmailAsync(email);
-        if (existingUser != null)
-        {
-            throw new InvalidOperationException("Email này đã được đăng ký");
-        }
-
-        if (!string.IsNullOrEmpty(phoneNumber))
-        {
-            var existingPhoneUser = await _userRepository.GetByPhoneAsync(phoneNumber);
-            if (existingPhoneUser != null)
-            {
-                throw new InvalidOperationException("Số điện thoại này đã được đăng ký");
-            }
-        }
-
-        // Delete any existing expired verification tokens for this email
-        var existingTokens = await _context.EmailVerificationTokens
-            .Where(t => t.Email == email)
-            .ToListAsync();
-
-        if (existingTokens.Any())
-        {
-            _context.EmailVerificationTokens.RemoveRange(existingTokens);
-            await _context.SaveChangesAsync();
-        }
-
-        // Generate 6-digit code
-        var verificationCode = new Random().Next(100000, 999999).ToString();
-
-        // Create temporary user data for hashing password
-        var tempUser = new AppUser { Email = email };
-        var hashedPassword = _passwordHasher.HashPassword(tempUser, password);
-
-        // Create verification token
-        var token = new EmailVerificationToken
-        {
-            Id = Guid.NewGuid(),
-            Email = email,
-            VerificationCode = verificationCode,
-            Name = name,
-            PasswordHash = hashedPassword,
-            PhoneNumber = phoneNumber,
-            Role = role,
-            CreatedAt = DateTime.UtcNow,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(15),
-            IsUsed = false
-        };
-
-        _context.EmailVerificationTokens.Add(token);
-        await _context.SaveChangesAsync();
-
-        // Send verification email
-        await _emailService.SendEmailVerificationCodeAsync(email, verificationCode);
-
-        return true;
-    }
-
-    public async Task<object> VerifyEmailAndRegisterAsync(string email, string code)
-    {
-        // Find verification token
-        var token = await _context.EmailVerificationTokens
-            .FirstOrDefaultAsync(t =>
-                t.Email == email &&
-                t.VerificationCode == code &&
-                !t.IsUsed &&
-                t.ExpiresAt > DateTime.UtcNow);
-
-        if (token == null)
-        {
-            throw new InvalidOperationException("Mã xác thực không hợp lệ hoặc đã hết hạn");
-        }
-
-        // Check if user already exists (double check)
-        var existingUser = await _userRepository.GetByEmailAsync(email);
-        if (existingUser != null)
-        {
-            throw new InvalidOperationException("Email này đã được đăng ký");
-        }
-
-        // Create user
-        var user = new AppUser
-        {
-            Id = Guid.NewGuid(),
-            FullName = token.Name,
-            Email = token.Email,
-            PhoneNumber = token.PhoneNumber,
-            Role = token.Role,
-            PasswordHash = token.PasswordHash,
-            EmailConfirmed = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        var createdUser = await _userRepository.CreateAsync(user);
-
-        // Mark token as used
-        token.IsUsed = true;
-        await _context.SaveChangesAsync();
-
-        // Generate JWT token
-        var jwtToken = GenerateJwtToken(createdUser);
-
-        return new
-        {
-            Token = jwtToken,
-            User = new
-            {
-                Id = createdUser.Id.ToString(),
-                Name = createdUser.FullName,
-                Email = createdUser.Email,
-                PhoneNumber = createdUser.PhoneNumber,
-                Role = createdUser.Role,
-                CreatedAt = createdUser.CreatedAt
-            }
-        };
+        await _userRepository.MarkTokenAsUsedAsync(token.Id);        return true;
     }
 
     private string GenerateJwtToken(AppUser user)

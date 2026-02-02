@@ -558,9 +558,7 @@ namespace EnglishLearningApp.Repository.Implementations
             {
                 throw new Exception($"Error getting recent activities: {ex.Message}", ex);
             }
-        }
-
-        public async Task<IEnumerable<object>> GetAllUsersAsync()
+        }        public async Task<IEnumerable<object>> GetAllUsersAsync()
         {
             var users = await _context.Users
                 .OrderByDescending(u => u.CreatedAt)
@@ -573,29 +571,36 @@ namespace EnglishLearningApp.Repository.Implementations
                 Email = u.Email,
                 PhoneNumber = u.PhoneNumber,
                 Role = u.Role,
+                IsActive = u.IsActive,
                 AvatarUrl = u.AvatarUrl,
                 CreatedAt = u.CreatedAt,
                 UpdatedAt = u.UpdatedAt
             });
-        }
-
-        public async Task<bool> ToggleUserStatusAsync(Guid userId, bool isActive)
+        }public async Task<bool> ToggleUserStatusAsync(Guid userId, bool isActive)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return false;
 
-            // Add IsActive property to AppUser entity if needed
+            user.IsActive = isActive;
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;
-        }
-
-        public async Task<bool> ChangeUserRoleAsync(Guid userId, string role)
+        }        public async Task<bool> ChangeUserRoleAsync(Guid userId, string role)
         {
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return false;
 
             user.Role = role;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return true;
+        }        public async Task<bool> ResetUserPasswordAsync(Guid userId, string newPassword)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return false;
+
+            // Password should already be hashed by the service layer
+            user.PasswordHash = newPassword;
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return true;

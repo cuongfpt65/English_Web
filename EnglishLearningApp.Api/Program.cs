@@ -14,7 +14,14 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        // Make JSON property names case-insensitive
+        options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        // Use camelCase for JSON property names
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
 // Add DbContext with retry on failure for Azure SQL
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -57,9 +64,22 @@ builder.Services.AddScoped<IVocabularyService, VocabularyService>();
 builder.Services.AddScoped<IClassService, ClassService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
-builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddScoped<IUserProfileService, UserProfileService>();
+
+// File Storage: Choose between Local or Cloudinary based on configuration
+var useCloudinary = builder.Configuration.GetValue<bool>("FileStorage:UseCloudinary");
+if (useCloudinary)
+{
+    builder.Services.AddScoped<IFileStorageService, CloudinaryFileStorageService>();
+    Console.WriteLine("☁️ Using Cloudinary Cloud Storage for documents.");
+}
+else
+{
+    builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+    Console.WriteLine("📁 Using Local File Storage for documents.");
+}
+
 builder.Services.AddScoped<IDocumentService, DocumentService>();
-Console.WriteLine("📁 Using Local File Storage for documents.");
 
 // Add JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -85,7 +105,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "https://fla.fptschoolsoctrang.edu.vn", "https://englishfpt.info.vn")
+        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "https://fla.fptschoolsoctrang.edu.vn", "https://englishfpt.info.vn", "http://localhost:5175")
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
@@ -125,6 +145,13 @@ builder.Services.AddSwaggerGen(options =>
                 }
             },            new string[] {}
         }
+    });
+
+    // Hỗ trợ file upload trong Swagger
+    options.MapType<IFormFile>(() => new OpenApiSchema
+    {
+        Type = "string",
+        Format = "binary"
     });
 });
 

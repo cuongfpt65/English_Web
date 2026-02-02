@@ -48,6 +48,16 @@ public class ToggleUserStatusDto
     public bool IsActive { get; set; }
 }
 
+public class ResetUserPasswordDto
+{
+    [Required]
+    public Guid UserId { get; set; }
+    
+    [Required]
+    [MinLength(6)]
+    public string NewPassword { get; set; } = string.Empty;
+}
+
 public class RejectTeacherDto
 {
     [Required]

@@ -1,15 +1,19 @@
+using EnglishLearningApp.Data.Entities.User;
 using EnglishLearningApp.Repository.Interfaces;
 using EnglishLearningApp.Service.Interfaces;
+using Microsoft.AspNetCore.Identity;
 
 namespace EnglishLearningApp.Service.Implementations
 {
     public class AdminService : IAdminService
     {
         private readonly IAdminRepository _adminRepository;
+        private readonly IPasswordHasher<AppUser> _passwordHasher;
 
-        public AdminService(IAdminRepository adminRepository)
+        public AdminService(IAdminRepository adminRepository, IPasswordHasher<AppUser> passwordHasher)
         {
             _adminRepository = adminRepository;
+            _passwordHasher = passwordHasher;
         }
 
         public async Task<object> RequestTeacherApprovalAsync(Guid userId, string fullName, string email, string? phoneNumber, string qualification, string experience, string? certificateUrl)
@@ -95,9 +99,7 @@ namespace EnglishLearningApp.Service.Implementations
         public async Task<IEnumerable<object>> GetAllUsersAsync()
         {
             return await _adminRepository.GetAllUsersAsync();
-        }
-
-        public async Task<bool> ToggleUserStatusAsync(Guid userId, bool isActive)
+        }        public async Task<bool> ToggleUserStatusAsync(Guid userId, bool isActive)
         {
             return await _adminRepository.ToggleUserStatusAsync(userId, isActive);
         }
@@ -105,6 +107,12 @@ namespace EnglishLearningApp.Service.Implementations
         public async Task<bool> ChangeUserRoleAsync(Guid userId, string role)
         {
             return await _adminRepository.ChangeUserRoleAsync(userId, role);
+        }        public async Task<bool> ResetUserPasswordAsync(Guid userId, string newPassword)
+        {
+            // Hash the password before sending to repository
+            var tempUser = new AppUser(); // Temporary user object for hashing
+            var hashedPassword = _passwordHasher.HashPassword(tempUser, newPassword);
+            return await _adminRepository.ResetUserPasswordAsync(userId, hashedPassword);
         }
     }
 }

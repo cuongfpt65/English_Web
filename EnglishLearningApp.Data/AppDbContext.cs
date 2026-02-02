@@ -4,6 +4,7 @@ using EnglishLearningApp.Data.Entities.Chatbot;
 using EnglishLearningApp.Data.Entities.Class;
 using EnglishLearningApp.Data.Entities.Document;
 using EnglishLearningApp.Data.Entities.Game;
+using EnglishLearningApp.Data.Entities.MyVocab;
 using EnglishLearningApp.Data.Entities.Test;
 using EnglishLearningApp.Data.Entities.User;
 using Microsoft.EntityFrameworkCore;
@@ -21,15 +22,16 @@ namespace EnglishLearningApp.Data
         public DbSet<UserGoogleLogin> UserGoogleLogins { get; set; }
         public DbSet<PhoneVerification> PhoneVerifications { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
-        public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }
-
-        // --- Chatbot ---
+        public DbSet<EmailVerificationToken> EmailVerificationTokens { get; set; }        // --- Chatbot ---
         public DbSet<ChatSession> ChatSessions { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<Vocabulary> Vocabularies { get; set; }
         public DbSet<UserVocabulary> UserVocabularies { get; set; }
         public DbSet<GrammarNote> GrammarNotes { get; set; }
         public DbSet<TranslationHistory> TranslationHistories { get; set; }
+
+        // --- My Vocab (Personal Vocabulary) ---
+        public DbSet<MyVocab> MyVocabs { get; set; }
 
         // --- Game ---
         public DbSet<Game> Games { get; set; }
@@ -67,6 +69,13 @@ namespace EnglishLearningApp.Data
                 .HasOne(d => d.UploadedBy)
                 .WithMany()
                 .HasForeignKey(d => d.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Configure MyVocab -> User relationship
+            modelBuilder.Entity<MyVocab>()
+                .HasOne(mv => mv.User)
+                .WithMany()
+                .HasForeignKey(mv => mv.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))

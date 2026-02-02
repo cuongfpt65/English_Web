@@ -331,9 +331,7 @@ namespace EnglishLearningApp.Api.Controllers
             {
                 return StatusCode(500, new { message = "Failed to change user role", error = ex.Message });
             }
-        }
-
-        [HttpPut("users/status")]
+        }        [HttpPut("users/status")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ToggleUserStatus([FromBody] ToggleUserStatusDto request)
         {
@@ -349,6 +347,25 @@ namespace EnglishLearningApp.Api.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to toggle user status", error = ex.Message });
+            }
+        }
+
+        [HttpPut("users/reset-password")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResetUserPassword([FromBody] ResetUserPasswordDto request)
+        {
+            try
+            {
+                var result = await _adminService.ResetUserPasswordAsync(request.UserId, request.NewPassword);
+                if (!result)
+                {
+                    return BadRequest(new { message = "Failed to reset user password" });
+                }
+                return Ok(new { message = "User password reset successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to reset user password", error = ex.Message });
             }
         }
     }

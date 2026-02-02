@@ -6,11 +6,10 @@ public interface IDocumentService
     Task<IEnumerable<object>> GetAllCategoriesAsync();
     Task<object?> GetCategoryByIdAsync(Guid id);
     Task<object> CreateCategoryAsync(object dto);
-    Task<object> UpdateCategoryAsync(Guid id, object dto);
-    Task<bool> DeleteCategoryAsync(Guid id);
+    Task<object> UpdateCategoryAsync(Guid id, object dto);    Task<bool> DeleteCategoryAsync(Guid id);
 
     // Document
-    Task<object> GetDocumentsAsync(Guid? categoryId = null, string? search = null, string? fileType = null, int page = 1, int pageSize = 10);
+    Task<object> GetDocumentsAsync(Guid? categoryId = null, string? search = null, string? fileType = null, int page = 1, int pageSize = 10, Guid? uploaderId = null);
     Task<object?> GetDocumentByIdAsync(Guid id);
     Task<object> UploadDocumentAsync(Guid userId, object dto, Stream fileStream, string fileName);
     Task<object> UpdateDocumentAsync(Guid id, Guid userId, object dto);

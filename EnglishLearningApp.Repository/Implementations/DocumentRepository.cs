@@ -50,9 +50,7 @@ public class DocumentRepository : IDocumentRepository
     public async Task<bool> DeleteCategoryAsync(Guid id)
     {
         var category = await _context.DocumentCategories.FindAsync(id);
-        if (category == null) return false;
-
-        _context.DocumentCategories.Remove(category);
+        if (category == null) return false;        _context.DocumentCategories.Remove(category);
         await _context.SaveChangesAsync();
         return true;
     }
@@ -66,7 +64,8 @@ public class DocumentRepository : IDocumentRepository
         string? search = null,
         string? fileType = null,
         int page = 1,
-        int pageSize = 10)
+        int pageSize = 10,
+        Guid? uploaderId = null)
     {
         var query = _context.Documents
             .Include(d => d.Category)
@@ -89,6 +88,11 @@ public class DocumentRepository : IDocumentRepository
         if (!string.IsNullOrWhiteSpace(fileType))
         {
             query = query.Where(d => d.FileType.ToLower() == fileType.ToLower());
+        }
+
+        if (uploaderId.HasValue)
+        {
+            query = query.Where(d => d.UploadedByUserId == uploaderId.Value);
         }
 
         var totalCount = await query.CountAsync();
@@ -126,12 +130,14 @@ public class DocumentRepository : IDocumentRepository
         _context.Documents.Update(document);
         await _context.SaveChangesAsync();
         return document;
-    }
-
-    public async Task<bool> DeleteDocumentAsync(Guid id)
+    }    public async Task<bool> DeleteDocumentAsync(Guid id)
     {
         var document = await _context.Documents.FindAsync(id);
         if (document == null) return false;
+
+        // Delete all related UserDocumentHistories first to avoid FK constraint error
+        var histories = _context.UserDocumentHistories.Where(h => h.DocumentId == id);
+        _context.UserDocumentHistories.RemoveRange(histories);
 
         _context.Documents.Remove(document);
         await _context.SaveChangesAsync();
@@ -151,9 +157,7 @@ public class DocumentRepository : IDocumentRepository
     public async Task<bool> IncrementDownloadCountAsync(Guid id)
     {
         var document = await _context.Documents.FindAsync(id);
-        if (document == null) return false;
-
-        document.DownloadCount++;
+        if (document == null) return false;        document.DownloadCount++;
         await _context.SaveChangesAsync();
         return true;
     }

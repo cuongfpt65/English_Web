@@ -8,8 +8,7 @@ public interface IDocumentRepository
     Task<IEnumerable<DocumentCategory>> GetAllCategoriesAsync();
     Task<DocumentCategory?> GetCategoryByIdAsync(Guid id);
     Task<DocumentCategory> CreateCategoryAsync(DocumentCategory category);
-    Task<DocumentCategory> UpdateCategoryAsync(DocumentCategory category);
-    Task<bool> DeleteCategoryAsync(Guid id);
+    Task<DocumentCategory> UpdateCategoryAsync(DocumentCategory category);    Task<bool> DeleteCategoryAsync(Guid id);
 
     // Document
     Task<(IEnumerable<Document> Items, int TotalCount)> GetDocumentsAsync(
@@ -17,7 +16,8 @@ public interface IDocumentRepository
         string? search = null, 
         string? fileType = null,
         int page = 1, 
-        int pageSize = 10);
+        int pageSize = 10,
+        Guid? uploaderId = null);
     
     Task<Document?> GetDocumentByIdAsync(Guid id);
     Task<Document> CreateDocumentAsync(Document document);

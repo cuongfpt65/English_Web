@@ -9,7 +9,7 @@ namespace EnglishLearningApp.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-
+    [Authorize] // Yêu cầu authentication cho tất cả endpoints
     public class VocabularyController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -17,9 +17,8 @@ namespace EnglishLearningApp.Api.Controllers
         public VocabularyController(AppDbContext context)
         {
             _context = context;
-        }
-
-        [HttpGet]
+        }        [HttpGet]
+        [AllowAnonymous] // Cho phép truy cập không cần đăng nhập
         public async Task<IActionResult> GetVocabulary(
             [FromQuery] string? topic = null,
             [FromQuery] string? level = null,
@@ -65,9 +64,8 @@ namespace EnglishLearningApp.Api.Controllers
             {
                 return StatusCode(500, new { message = "Failed to retrieve vocabulary", error = ex.Message });
             }
-        }
-
-        [HttpGet("topics")]
+        }        [HttpGet("topics")]
+        [AllowAnonymous] // Cho phép truy cập không cần đăng nhập
         public async Task<IActionResult> GetTopics()
         {
             try
@@ -84,9 +82,8 @@ namespace EnglishLearningApp.Api.Controllers
             {
                 return StatusCode(500, new { message = "Failed to retrieve topics", error = ex.Message });
             }
-        }
-
-        [HttpGet("levels")]
+        }        [HttpGet("levels")]
+        [AllowAnonymous] // Cho phép truy cập không cần đăng nhập
         public async Task<IActionResult> GetLevels()
         {
             try
@@ -102,6 +99,69 @@ namespace EnglishLearningApp.Api.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, new { message = "Failed to retrieve levels", error = ex.Message });
+            }
+        }        // -------------------------------------------------------------
+        // 🤖 AI Quiz Generation - Tạo quiz AI từ vocabulary
+        // -------------------------------------------------------------
+        [HttpPost("generate-ai-quiz")]
+        [AllowAnonymous] // Tạm thời cho phép không cần đăng nhập để test
+        public async Task<IActionResult> GenerateAIQuiz([FromBody] GenerateAIQuizRequest request)
+        {
+            try
+            {
+                // Lấy userId từ token nếu có, nếu không thì dùng test user
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                Guid userId;
+                
+                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out userId))
+                {
+                    // Tạm thời dùng user đầu tiên trong database để test
+                    var testUser = await _context.Users.FirstOrDefaultAsync();
+                    if (testUser == null)
+                    {
+                        return BadRequest(new { message = "No users found in database. Please create a user first." });
+                    }
+                    userId = testUser.Id;
+                }                // Lấy danh sách vocabulary từ hệ thống (không cần user đã học)
+                var allVocabularies = await _context.Vocabularies
+                    .OrderBy(v => Guid.NewGuid()) // Random order
+                    .ToListAsync();
+
+                if (allVocabularies.Count == 0)
+                {
+                    return BadRequest(new { message = "Hệ thống chưa có từ vựng nào. Vui lòng thêm từ vựng trước!" });
+                }
+
+                // Giới hạn số lượng từ theo yêu cầu
+                var count = Math.Min(request.Count, allVocabularies.Count);
+                
+                // Lấy ngẫu nhiên số lượng từ
+                var selectedVocabularies = allVocabularies
+                    .Take(count)
+                    .Select(v => new
+                    {
+                        v.Word,
+                        v.Meaning,
+                        v.Example
+                    })
+                    .ToList();
+
+                // Chuyển thành JSON để gửi cho AI
+                var vocabularyJson = System.Text.Json.JsonSerializer.Serialize(selectedVocabularies);
+
+                // Gọi ChatBotService để tạo quiz
+                var chatBotService = HttpContext.RequestServices.GetRequiredService<ERSP.Api.Services.ChatBotService>();
+                var quizJson = await chatBotService.HandleAsync(vocabularyJson, "ai_quiz");
+
+                return Ok(new
+                {
+                    quiz = System.Text.Json.JsonSerializer.Deserialize<object>(quizJson),
+                    vocabularyCount = count
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to generate AI quiz", error = ex.Message });
             }
         }
 
@@ -332,9 +392,8 @@ namespace EnglishLearningApp.Api.Controllers
             {
                 return StatusCode(500, new { message = "Failed to seed vocabulary", error = ex.Message });
             }
-        }
-
-        [HttpGet("search")]
+        }        [HttpGet("search")]
+        [AllowAnonymous] // Cho phép truy cập không cần đăng nhập
         public async Task<IActionResult> SearchVocabulary([FromQuery] string term)
         {
             try
@@ -443,6 +502,100 @@ namespace EnglishLearningApp.Api.Controllers
             {
                 return StatusCode(500, new { message = "Failed to delete vocabulary", error = ex.Message });
             }
+        }        // Check if words already exist in global Vocabulary table
+        [HttpPost("check-exists")]
+        public async Task<IActionResult> CheckVocabularyExists([FromBody] CheckVocabularyRequest request)
+        {
+            try
+            {
+                // Check if words exist in the global Vocabularies table
+                var existingWords = await _context.Vocabularies
+                    .Where(v => request.Words.Select(w => w.ToLower()).Contains(v.Word.ToLower()))
+                    .Select(v => v.Word)
+                    .ToListAsync();
+
+                return Ok(new { existingWords });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to check vocabulary", error = ex.Message });
+            }
+        }
+
+        // Add multiple vocabularies at once (batch)
+        [HttpPost("batch")]
+        public async Task<IActionResult> AddVocabularyBatch([FromBody] BatchVocabularyRequest request)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                int addedCount = 0;
+                int skippedCount = 0;
+
+                foreach (var wordData in request.Words)
+                {
+                    // Check if vocabulary already exists in system
+                    var existingVocab = await _context.Vocabularies
+                        .FirstOrDefaultAsync(v => v.Word.ToLower() == wordData.Word.ToLower());
+
+                    Vocabulary vocab;
+                    if (existingVocab == null)
+                    {
+                        // Create new vocabulary
+                        vocab = new Vocabulary
+                        {
+                            Id = Guid.NewGuid(),
+                            Word = wordData.Word,
+                            Meaning = wordData.Meaning,
+                            Example = wordData.Example ?? "",
+                            Topic = wordData.Topic ?? "General",
+                            Level = wordData.Level ?? "Intermediate",
+                            ImageUrl = null
+                        };
+                        _context.Vocabularies.Add(vocab);
+                    }
+                    else
+                    {
+                        vocab = existingVocab;
+                    }
+
+                    // Check if user already learned this word
+                    var userVocabExists = await _context.UserVocabularies
+                        .AnyAsync(uv => uv.UserId == userId && uv.VocabularyId == vocab.Id);
+
+                    if (!userVocabExists)
+                    {
+                        // Add to user's vocabulary
+                        var userVocab = new UserVocabulary
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = userId,
+                            VocabularyId = vocab.Id,
+                            Note = "From AI Chat",
+                            AddedAt = DateTime.UtcNow
+                        };
+                        _context.UserVocabularies.Add(userVocab);
+                        addedCount++;
+                    }
+                    else
+                    {
+                        skippedCount++;
+                    }
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = $"Added {addedCount} new words, skipped {skippedCount} existing words",
+                    addedCount,
+                    skippedCount
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to add vocabulary batch", error = ex.Message });
+            }
         }
 
         private Guid GetCurrentUserId()
@@ -453,6 +606,26 @@ namespace EnglishLearningApp.Api.Controllers
 
             return Guid.Parse(userIdClaim.Value);
         }
+    }
+
+    public class CheckVocabularyRequest
+    {
+        public List<string> Words { get; set; } = new();
+    }
+
+    public class BatchVocabularyRequest
+    {
+        public List<WordData> Words { get; set; } = new();
+    }
+
+    public class WordData
+    {
+        public string Word { get; set; } = "";
+        public string Meaning { get; set; } = "";
+        public string? Example { get; set; }
+        public string? Category { get; set; }
+        public string? Topic { get; set; }
+        public string? Level { get; set; }
     }
 
     public class LearnVocabularyRequest
@@ -485,5 +658,8 @@ namespace EnglishLearningApp.Api.Controllers
         public string? ImageUrl { get; set; }
     }
 
-   
+    public class GenerateAIQuizRequest
+    {
+        public int Count { get; set; } = 10; // Số lượng từ muốn dùng để tạo quiz
+    }
 }

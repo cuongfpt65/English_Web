@@ -7,10 +7,6 @@ public interface IAuthService
     Task<object> LoginWithPhoneAsync(object request);
     Task<string> SendVerificationCodeAsync(object request);
     
-    // Email Verification methods
-    Task<bool> SendEmailVerificationCodeAsync(string email, string name, string password, string confirmPassword, string? phoneNumber, string role);
-    Task<object> VerifyEmailAndRegisterAsync(string email, string code);
-    
     // Password Reset methods
     Task<bool> SendPasswordResetCodeAsync(string email);
     Task<bool> VerifyResetCodeAsync(string email, string code);

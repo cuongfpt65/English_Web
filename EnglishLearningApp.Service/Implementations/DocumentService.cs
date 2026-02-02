@@ -91,9 +91,7 @@ public class DocumentService : IDocumentService
             CreatedAt = category.CreatedAt,
             DocumentCount = category.Documents?.Count ?? 0
         };
-    }
-
-    public async Task<bool> DeleteCategoryAsync(Guid id)
+    }    public async Task<bool> DeleteCategoryAsync(Guid id)
     {
         return await _documentRepository.DeleteCategoryAsync(id);
     }
@@ -102,9 +100,9 @@ public class DocumentService : IDocumentService
 
     #region Document Methods
 
-    public async Task<object> GetDocumentsAsync(Guid? categoryId = null, string? search = null, string? fileType = null, int page = 1, int pageSize = 10)
+    public async Task<object> GetDocumentsAsync(Guid? categoryId = null, string? search = null, string? fileType = null, int page = 1, int pageSize = 10, Guid? uploaderId = null)
     {
-        var (items, totalCount) = await _documentRepository.GetDocumentsAsync(categoryId, search, fileType, page, pageSize);
+        var (items, totalCount) = await _documentRepository.GetDocumentsAsync(categoryId, search, fileType, page, pageSize, uploaderId);
 
         var documents = items.Select(d => new DocumentDto
         {
@@ -166,16 +164,14 @@ public class DocumentService : IDocumentService
 
     public async Task<object> UploadDocumentAsync(Guid userId, object dto, Stream fileStream, string fileName)
     {
-        var createDto = (CreateDocumentDto)dto;
-
-        // Get file extension
+        var createDto = (CreateDocumentDto)dto;        // Get file extension
         var fileExtension = Path.GetExtension(fileName).TrimStart('.').ToLower();
         
-        // Validate file type
-        var allowedTypes = new[] { "pdf", "doc", "docx" };
+        // Validate file type - Only DOC and DOCX allowed
+        var allowedTypes = new[] { "doc", "docx" };
         if (!allowedTypes.Contains(fileExtension))
         {
-            throw new Exception($"File type not allowed. Only {string.Join(", ", allowedTypes)} are supported.");
+            throw new Exception($"File type not allowed. Only DOC and DOCX files are supported.");
         }
 
         // Get file size

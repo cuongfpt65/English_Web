@@ -14,6 +14,7 @@ public class ChatResponse
 {
     public string Answer { get; set; } = string.Empty;
     public Guid? SessionId { get; set; }
+    public object? VocabularyData { get; set; }
 }
 
 public class CreateSessionRequest
@@ -47,9 +48,7 @@ public class ChatBotController : ControllerBase
     {
         _chatbotService = chatService;
         _chatRepository = chatRepository;
-    }
-
-    // Gửi tin nhắn chat
+    }    // Gửi tin nhắn chat
     [HttpPost]
     public async Task<ActionResult<ChatResponse>> Post([FromBody] ChatRequest request)
     {
@@ -75,6 +74,33 @@ public class ChatBotController : ControllerBase
             sessionId, 
             userId
         );
+
+        // Nếu type là essay_with_vocabulary, parse JSON response
+        if (request.Type == "essay_with_vocabulary")
+        {
+            try
+            {
+                var jsonResponse = System.Text.Json.JsonDocument.Parse(answer);
+                var essay = jsonResponse.RootElement.GetProperty("essay").GetString();
+                var vocabularyData = jsonResponse.RootElement.GetProperty("vocabularyData");
+
+                return new ChatResponse
+                {
+                    Answer = essay ?? answer,
+                    SessionId = sessionId,
+                    VocabularyData = System.Text.Json.JsonSerializer.Deserialize<object>(vocabularyData.GetRawText())
+                };
+            }
+            catch
+            {
+                // Nếu parse lỗi, trả về answer bình thường
+                return new ChatResponse
+                {
+                    Answer = answer,
+                    SessionId = sessionId
+                };
+            }
+        }
 
         return new ChatResponse
         {

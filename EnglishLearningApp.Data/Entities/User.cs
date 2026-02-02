@@ -11,9 +11,9 @@ namespace EnglishLearningApp.Data.Entities.User
         public bool EmailConfirmed { get; set; } = false;
         public string? PhoneNumber { get; set; }
         public bool PhoneNumberConfirmed { get; set; } = false;
-        public string PasswordHash { get; set; } = null!;
-        public string FullName { get; set; } = null!;        public string? AvatarUrl { get; set; }
+        public string PasswordHash { get; set; } = null!;        public string FullName { get; set; } = null!;        public string? AvatarUrl { get; set; }
         public string Role { get; set; } = "Student";
+        public bool IsActive { get; set; } = true; // Account lock/unlock status
         // Status property removed - use TeacherApproval table for teacher status
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

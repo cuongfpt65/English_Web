@@ -12,9 +12,7 @@ namespace EnglishLearningApp.Service.Implementations
         public EmailService(IConfiguration configuration)
         {
             _configuration = configuration;
-        }
-
-        public async Task SendPasswordResetCodeAsync(string email, string code)
+        }        public async Task SendPasswordResetCodeAsync(string email, string code)
         {
             try
             {
@@ -23,13 +21,17 @@ namespace EnglishLearningApp.Service.Implementations
                 var smtpUsername = _configuration["Email:Username"] ?? "";
                 var smtpPassword = _configuration["Email:Password"] ?? "";
                 var fromEmail = _configuration["Email:From"] ?? smtpUsername;
-                var fromName = _configuration["Email:FromName"] ?? "FPT Learnify AI";
+                var fromName = _configuration["Email:FromName"] ?? "FPT Learnify AI";                // Debug logging
+                Console.WriteLine($"[EMAIL DEBUG] Host: {smtpHost}, Port: {smtpPort}");
+                Console.WriteLine($"[EMAIL DEBUG] Username: {smtpUsername}");
+                Console.WriteLine($"[EMAIL DEBUG] Password Length: {smtpPassword?.Length ?? 0} characters");
 
-                using var client = new SmtpClient(smtpHost, smtpPort)
-                {
-                    EnableSsl = true,
-                    Credentials = new NetworkCredential(smtpUsername, smtpPassword)
-                };
+                using var client = new SmtpClient(smtpHost, smtpPort);
+                client.UseDefaultCredentials = false;
+                client.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+                client.EnableSsl = true;
+                client.DeliveryMethod = SmtpDeliveryMethod.Network;
+                client.Timeout = 30000;
 
                 var mailMessage = new MailMessage
                 {
@@ -41,18 +43,22 @@ namespace EnglishLearningApp.Service.Implementations
 
                 mailMessage.To.Add(email);
 
+                Console.WriteLine($"[EMAIL DEBUG] Attempting to send password reset email...");
                 await client.SendMailAsync(mailMessage);
+                Console.WriteLine($"[EMAIL DEBUG] Email sent successfully!");
+            }
+            catch (SmtpException smtpEx)
+            {
+                Console.WriteLine($"[EMAIL ERROR] SMTP Error: {smtpEx.Message}");
+                Console.WriteLine($"[EMAIL ERROR] Status Code: {smtpEx.StatusCode}");
+                throw new Exception($"SMTP Error: {smtpEx.Message}", smtpEx);
             }
             catch (Exception ex)
             {
-                // Log the error (in production, use proper logging)
-                Console.WriteLine($"Failed to send email: {ex.Message}");
-                // In development, we'll just continue without throwing
-                // In production, you might want to throw or handle differently
+                Console.WriteLine($"[EMAIL ERROR] General Error: {ex.Message}");
+                throw;
             }
-        }
-
-        public async Task SendEmailVerificationCodeAsync(string email, string code)
+        }public async Task SendEmailVerificationCodeAsync(string email, string code)
         {
             try
             {
@@ -61,13 +67,18 @@ namespace EnglishLearningApp.Service.Implementations
                 var smtpUsername = _configuration["Email:Username"] ?? "";
                 var smtpPassword = _configuration["Email:Password"] ?? "";
                 var fromEmail = _configuration["Email:From"] ?? smtpUsername;
-                var fromName = _configuration["Email:FromName"] ?? "FPT Learnify AI";
+                var fromName = _configuration["Email:FromName"] ?? "FPT Learnify AI";                // Debug logging
+                Console.WriteLine($"[EMAIL DEBUG] Host: {smtpHost}, Port: {smtpPort}");
+                Console.WriteLine($"[EMAIL DEBUG] Username: {smtpUsername}");
+                Console.WriteLine($"[EMAIL DEBUG] Password Length: {smtpPassword?.Length ?? 0} characters");
+                Console.WriteLine($"[EMAIL DEBUG] To: {email}");
 
-                using var client = new SmtpClient(smtpHost, smtpPort)
-                {
-                    EnableSsl = true,
-                    Credentials = new NetworkCredential(smtpUsername, smtpPassword)
-                };
+                using var client = new SmtpClient(smtpHost, smtpPort);
+                client.UseDefaultCredentials = false;
+                client.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+                client.EnableSsl = true;
+                client.DeliveryMethod = SmtpDeliveryMethod.Network;
+                client.Timeout = 30000;
 
                 var mailMessage = new MailMessage
                 {
@@ -79,11 +90,21 @@ namespace EnglishLearningApp.Service.Implementations
 
                 mailMessage.To.Add(email);
 
+                Console.WriteLine($"[EMAIL DEBUG] Attempting to send email...");
                 await client.SendMailAsync(mailMessage);
+                Console.WriteLine($"[EMAIL DEBUG] Email sent successfully!");
+            }
+            catch (SmtpException smtpEx)
+            {
+                Console.WriteLine($"[EMAIL ERROR] SMTP Error: {smtpEx.Message}");
+                Console.WriteLine($"[EMAIL ERROR] Status Code: {smtpEx.StatusCode}");
+                Console.WriteLine($"[EMAIL ERROR] Stack Trace: {smtpEx.StackTrace}");
+                throw new Exception($"SMTP Error: {smtpEx.Message}", smtpEx);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Failed to send verification email: {ex.Message}");
+                Console.WriteLine($"[EMAIL ERROR] General Error: {ex.Message}");
+                Console.WriteLine($"[EMAIL ERROR] Stack Trace: {ex.StackTrace}");
                 throw;
             }
         }

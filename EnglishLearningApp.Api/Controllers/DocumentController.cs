@@ -101,8 +101,7 @@ public class DocumentController : ControllerBase
             return Ok(new { success = true, message = "Category deleted successfully" });
         }
         catch (Exception ex)
-        {
-            return BadRequest(new { success = false, message = ex.Message });
+        {            return BadRequest(new { success = false, message = ex.Message });
         }
     }
 
@@ -117,11 +116,12 @@ public class DocumentController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] string? fileType = null,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 10)
+        [FromQuery] int pageSize = 10,
+        [FromQuery] Guid? uploaderId = null)
     {
         try
         {
-            var result = await _documentService.GetDocumentsAsync(categoryId, search, fileType, page, pageSize);
+            var result = await _documentService.GetDocumentsAsync(categoryId, search, fileType, page, pageSize, uploaderId);
             return Ok(new { success = true, data = result });
         }
         catch (Exception ex)
@@ -256,9 +256,7 @@ public class DocumentController : ControllerBase
         {
             return BadRequest(new { success = false, message = ex.Message });
         }
-    }
-
-    [HttpPost("{id}/download")]
+    }    [HttpPost("{id}/download")]
     [Authorize]
     public async Task<IActionResult> RecordDownload(Guid id)
     {
@@ -270,6 +268,57 @@ public class DocumentController : ControllerBase
         }
         catch (Exception ex)
         {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Proxy endpoint to serve PDF files directly (bypasses Cloudinary authentication issues)
+    /// </summary>
+    [HttpGet("{id}/view-file")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ViewFile(Guid id)
+    {
+        try
+        {
+            var document = await _documentService.GetDocumentByIdAsync(id);
+            if (document == null)
+            {
+                return NotFound(new { success = false, message = "Document not found" });
+            }
+
+            var doc = document as dynamic;
+            string fileUrl = doc.FileUrl;
+            string fileName = doc.FileName;
+            string fileType = doc.FileType;
+
+            // Download file from Cloudinary
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync(fileUrl);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                return BadRequest(new { success = false, message = "Could not retrieve file from storage" });
+            }
+
+            var fileBytes = await response.Content.ReadAsByteArrayAsync();
+            
+            // Determine content type
+            var contentType = fileType.ToLower() switch
+            {
+                "pdf" => "application/pdf",
+                "doc" => "application/msword",
+                "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                _ => "application/octet-stream"
+            };
+
+            // Return file with inline disposition (view in browser)
+            Response.Headers.Add("Content-Disposition", $"inline; filename=\"{fileName}\"");
+            return File(fileBytes, contentType);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR in ViewFile: {ex.Message}");
             return BadRequest(new { success = false, message = ex.Message });
         }
     }

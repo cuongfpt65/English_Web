@@ -22,10 +22,10 @@ namespace EnglishLearningApp.Service.Interfaces
         Task<object> GetQuizStatisticsAsync();
         Task<object> GetChatStatisticsAsync();
         Task<IEnumerable<object>> GetRecentActivitiesAsync(int limit = 10);
-        
-        // User Management
+          // User Management
         Task<IEnumerable<object>> GetAllUsersAsync();
         Task<bool> ToggleUserStatusAsync(Guid userId, bool isActive);
         Task<bool> ChangeUserRoleAsync(Guid userId, string role);
+        Task<bool> ResetUserPasswordAsync(Guid userId, string newPassword);
     }
 }
